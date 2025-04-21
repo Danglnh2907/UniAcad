@@ -10,8 +10,10 @@ import java.io.IOException;
 import java.util.logging.Logger;
 
 /**
- * A custom Servlet for handling HTTP requests.
- * Mapped to /loginservlet by default.
+ * LoginServlet is a servlet that handles user login requests.
+ *
+ * It manages both GET and POST HTTP methods for directing user requests
+ * and facilitating interaction with the login page.
  */
 @WebServlet(
         name = "LoginServlet",
@@ -20,7 +22,14 @@ import java.util.logging.Logger;
 public class LoginServlet extends HttpServlet {
 
     /**
-     * Handle GET requests.
+     * Handles HTTP GET requests.
+     * Forwards the incoming request to the "index.jsp" page and processes the response.
+     * Logs an error message in case of any exception during the operation.
+     *
+     * @param request  the HttpServletRequest object that contains the request the client has made
+     * @param response the HttpServletResponse object that contains the response the servlet returns to the client
+     * @throws ServletException if the request could not be handled
+     * @throws IOException      if an input or output error occurs while the servlet is handling the request
      */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
@@ -33,7 +42,13 @@ public class LoginServlet extends HttpServlet {
     }
 
     /**
-     * Handle POST requests.
+     * Handles HTTP POST requests by delegating the processing to the doGet method.
+     * Logs an error message in case of any exception during the operation.
+     *
+     * @param request  the HttpServletRequest object that contains the request the client has made
+     * @param response the HttpServletResponse object that contains the response the servlet returns to the client
+     * @throws ServletException if the request could not be handled
+     * @throws IOException      if an input or output error occurs while the servlet is handling the request
      */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
