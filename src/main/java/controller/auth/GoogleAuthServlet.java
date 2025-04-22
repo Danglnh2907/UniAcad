@@ -25,8 +25,8 @@ import java.util.Properties;
 import java.util.logging.Logger;
 
 /**
- * Simplified GoogleAuthServlet for Google OAuth2 login to retrieve user email.
- * Redirects to Google for authentication and stores email in session.
+ * Simplified GoogleAuthServlet for Google OAuth2 login to retrieve user email and full name.
+ * Redirects to Google for authentication and stores email and full name in session.
  */
 @WebServlet("/google-auth")
 public class GoogleAuthServlet extends HttpServlet {
@@ -99,11 +99,13 @@ public class GoogleAuthServlet extends HttpServlet {
             com.google.gson.JsonObject userInfo = gson.fromJson(userInfoJson, com.google.gson.JsonObject.class);
 
             String email = userInfo.get("email").getAsString();
+            String fullName = userInfo.get("name") != null ? userInfo.get("name").getAsString() : "Unknown";
 
-            // Store email in session
+            // Store email and full name in session
             HttpSession session = request.getSession();
             session.setAttribute("email", email);
-            LOGGER.info("User logged in with email: " + email);
+            session.setAttribute("full_name", fullName);
+            LOGGER.info("User logged in with email: " + email + ", full name: " + fullName);
 
             response.sendRedirect("account.jsp");
         } catch (Exception e) {
