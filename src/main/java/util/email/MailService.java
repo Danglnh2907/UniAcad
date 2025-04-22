@@ -10,6 +10,7 @@ import jakarta.mail.util.ByteArrayDataSource;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 /**
@@ -166,16 +167,25 @@ public class MailService {
     }
 
     /**
-     * Sends a verification email with a token.
+     * Sends a verification email to each recipient with their unique token.
      *
-     * @param recipients List of recipient email addresses
-     * @param subject    Email subject
-     * @param token      Verification token
+     * @param recipientToToken Map of recipient email addresses to their unique verification tokens
+     * @param subject          Email subject
      * @throws MessagingException If email sending fails
      * @throws IOException If image loading fails
      */
-    public void sendVerify(List<String> recipients, String subject, String token) throws MessagingException, IOException {
-        sendEmail(recipients, subject, token, true);
+    public void sendVerify(Map<String, String> recipientToToken, String subject) throws MessagingException, IOException {
+        for (Map.Entry<String, String> entry : recipientToToken.entrySet()) {
+            String recipient = entry.getKey();
+            String token = entry.getValue();
+            List<String> singleRecipient = List.of(recipient);
+            try {
+                sendEmail(singleRecipient, subject, token, true);
+            } catch (MessagingException | IOException e) {
+                logger.error("Failed to send email to {}", recipient, e);
+                throw e; // Re-throw to allow caller to handle failures
+            }
+        }
     }
 
     /**
@@ -194,10 +204,14 @@ public class MailService {
     public static void main(String[] args) {
         try {
             MailService mailService = new MailService();
-            List<String> recipients = List.of("khai1234sd@gmail.com");
-            mailService.sendVerify(recipients, "Test Verification", "123456");
+            Map<String, String> recipientToToken = Map.of(
+                    "khainhce182286@fpt.edu.vn", "token123",
+                    "khaiproject1234@gmail.com", "token456",
+                    "tho551506@gmail.com", "token789"
+            );
+            mailService.sendVerify(recipientToToken, "Test Verification");
         } catch (MessagingException | IOException e) {
-            logger.error("Failed to send email", e);
+            logger.error("Failed to send emails", e);
         }
     }
 }
