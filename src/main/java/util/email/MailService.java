@@ -1,10 +1,12 @@
 package util.email;
 
+import jakarta.activation.DataHandler;
 import jakarta.mail.*;
 import jakarta.mail.internet.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.file.FileService;
+import jakarta.mail.util.ByteArrayDataSource;
 
 import java.io.IOException;
 import java.util.List;
@@ -18,6 +20,7 @@ public class MailService {
     private static final String HOST = "smtp.gmail.com";
     private static final int PORT = 587;
     private static final String BASE_URL = "http://localhost:9090/UniAcad_war_exploded";
+    private static final String VERIFICATION_TEMPLATE_PATH = "templates/verification-email.html";
 
     private final String username;
     private final String password;
@@ -47,15 +50,16 @@ public class MailService {
     }
 
     /**
-     * Sends an HTML email to a list of recipients.
+     * Sends an HTML email to a list of recipients with embedded images.
      *
      * @param recipients List of recipient email addresses
      * @param subject    Email subject
      * @param content    HTML content or verification token
      * @param isVerify   True if sending verification email, false for generic HTML
      * @throws MessagingException If email sending fails
+     * @throws IOException If image loading fails
      */
-    public void sendEmail(List<String> recipients, String subject, String content, boolean isVerify) throws MessagingException {
+    public void sendEmail(List<String> recipients, String subject, String content, boolean isVerify) throws MessagingException, IOException {
         InternetAddress[] addresses = recipients.stream()
                 .map(email -> {
                     try {
@@ -79,12 +83,45 @@ public class MailService {
         message.setSubject(subject);
         message.setRecipients(Message.RecipientType.TO, addresses);
 
-        String emailContent = isVerify ? buildVerificationEmail(content) : FileService.readFileFromResources(content);
-        MimeBodyPart body = new MimeBodyPart();
-        body.setContent(emailContent, "text/html; charset=utf-8");
+        // Create a multipart object to hold HTML and images
+        MimeMultipart multipart = new MimeMultipart("related");
 
-        Multipart multipart = new MimeMultipart();
-        multipart.addBodyPart(body);
+        // Load and add the HTML content
+        String emailContent = isVerify ? buildVerificationEmail(content) : FileService.readFileFromResources(content);
+        MimeBodyPart htmlPart = new MimeBodyPart();
+        htmlPart.setContent(emailContent, "text/html; charset=utf-8");
+        multipart.addBodyPart(htmlPart);
+
+        // List of images to embed
+        String[] imagePaths = {
+                "img/948015252763872ed01b79cbbbb7c68b.png", // Banner image
+                "img/f8d71b6c42f7300871f9e091c6a737e3.jpg", // Email icon
+                "img/4d3b20f647cbdeb288013a15cce39fdf.jpg", // Text icon
+                "img/1cd2ff272e2531b8041264de38db1b5f.png", // X icon
+                "img/51a2644c1491853d60a9688ed8f4fa9e.png", // Instagram icon
+                "img/7575b9251670cd15f3423fd911239179.png"  // Facebook icon
+        };
+        String[] contentIds = {
+                "banner",
+                "email_icon",
+                "text_icon",
+                "x_icon",
+                "instagram_icon",
+                "facebook_icon"
+        };
+
+        // Embed each image
+        for (int i = 0; i < imagePaths.length; i++) {
+            MimeBodyPart imagePart = new MimeBodyPart();
+            byte[] imageBytes = getClass().getClassLoader().getResourceAsStream(imagePaths[i]).readAllBytes();
+            ByteArrayDataSource dataSource = new ByteArrayDataSource(imageBytes, getMimeType(imagePaths[i]));
+            imagePart.setDataHandler(new DataHandler(dataSource));
+            imagePart.setHeader("Content-ID", "<" + contentIds[i] + ">");
+            imagePart.setDisposition(MimeBodyPart.INLINE);
+            multipart.addBodyPart(imagePart);
+        }
+
+        // Set the multipart content in the message
         message.setContent(multipart);
 
         Transport.send(message);
@@ -92,7 +129,7 @@ public class MailService {
     }
 
     /**
-     * Builds an HTML email for account verification with a modern, responsive design.
+     * Builds an HTML email for account verification by loading a template and injecting dynamic values.
      *
      * @param token Verification token
      * @return HTML email content
@@ -101,70 +138,31 @@ public class MailService {
         String verificationLink = String.format("%s/verify?token=%s", BASE_URL, token);
         String fromEmail = oauthProperties.getProperty("oauth.email", username);
 
-        return String.format("""
-                <!DOCTYPE html>
-                <html lang="en">
-                <head>
-                    <meta charset="UTF-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <title>Verify Your Email</title>
-                    <style>
-                        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background: #f4f4f9; color: #333; }
-                        .container { padding: 20px; }
-                        .card { max-width: 600px; margin: 0 auto; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 6px 20px rgba(0,0,0,0.1); }
-                        .header { background: linear-gradient(135deg, #4f46e5, #7c3aed); padding: 30px; text-align: center; }
-                        .header img { max-width: 120px; height: auto; }
-                        .header h1 { margin: 10px 0 0; font-size: 26px; font-weight: 700; color: #fff; }
-                        .body { padding: 30px; }
-                        .body h2 { font-size: 22px; font-weight: 600; color: #1f2937; margin: 0 0 15px; }
-                        .body p { font-size: 16px; line-height: 1.6; color: #4b5563; margin: 0 0 20px; }
-                        .button { display: inline-block; padding: 14px 28px; font-size: 16px; font-weight: 600; color: #fff; background: #4f46e5; text-decoration: none; border-radius: 8px; transition: background 0.2s; }
-                        .button:hover { background: #4338ca; }
-                        .code { font-size: 18px; font-weight: 600; color: #4f46e5; background: #f1f5f9; padding: 10px 15px; border-radius: 6px; display: inline-block; margin: 10px 0; }
-                        .footer { background: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0; }
-                        .footer p { font-size: 14px; color: #6b7280; margin: 0 0 5px; }
-                        .footer a { color: #4f46e5; text-decoration: none; }
-                        .footer a:hover { text-decoration: underline; }
-                        @media (max-width: 600px) {
-                            .container { padding: 10px; }
-                            .card { border-radius: 12px; }
-                            .header { padding: 20px; }
-                            .header h1 { font-size: 22px; }
-                            .body { padding: 20px; }
-                            .body h2 { font-size: 20px; }
-                            .button { padding: 12px 24px; font-size: 15px; }
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="container">
-                        <div class="card">
-                            <div class="header">
-                                <!-- Replace with your logo URL -->
-                                <img src="https://via.placeholder.com/120x40?text=Logo" alt="Logo">
-                                <h1>Email Verification</h1>
-                            </div>
-                            <div class="body">
-                                <h2>Welcome Aboard!</h2>
-                                <p>You're one step away from activating your account. Click the button below to verify your email address. This link expires in 24 hours.</p>
-                                <a href="%s" class="button">Verify Your Email</a>
-                                <p>Or use this verification code: <span class="code">%s</span></p>
-                                <p>If the button doesn't work, copy and paste this link:</p>
-                                <p><a href="%s" style="color: #4f46e5; word-break: break-all;">%s</a></p>
-                                <p>Didn't sign up? You can safely ignore this email.</p>
-                            </div>
-                            <div class="footer">
-                                <p>&copy; 2025 UniAcad. All rights reserved.</p>
-                                <p>
-                                    <a href="%s">Visit our website</a> | 
-                                    <a href="mailto:%s">Contact support</a>
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </body>
-                </html>
-                """, verificationLink, token, verificationLink, verificationLink, BASE_URL, fromEmail);
+        try {
+            String template = FileService.readFileFromResources(VERIFICATION_TEMPLATE_PATH);
+            return template
+                    .replace("{{verificationLink}}", verificationLink)
+                    .replace("{{fromEmail}}", fromEmail)
+                    .replace("{{baseUrl}}", BASE_URL);
+        } catch (Exception e) {
+            logger.error("Failed to load or process verification email template", e);
+            throw new RuntimeException("Cannot load verification email template", e);
+        }
+    }
+
+    /**
+     * Determines the MIME type based on file extension.
+     *
+     * @param filePath Path to the image file
+     * @return MIME type (e.g., "image/png" or "image/jpeg")
+     */
+    private String getMimeType(String filePath) {
+        if (filePath.toLowerCase().endsWith(".png")) {
+            return "image/png";
+        } else if (filePath.toLowerCase().endsWith(".jpg") || filePath.toLowerCase().endsWith(".jpeg")) {
+            return "image/jpeg";
+        }
+        return "application/octet-stream";
     }
 
     /**
@@ -174,8 +172,9 @@ public class MailService {
      * @param subject    Email subject
      * @param token      Verification token
      * @throws MessagingException If email sending fails
+     * @throws IOException If image loading fails
      */
-    public void sendVerify(List<String> recipients, String subject, String token) throws MessagingException {
+    public void sendVerify(List<String> recipients, String subject, String token) throws MessagingException, IOException {
         sendEmail(recipients, subject, token, true);
     }
 
@@ -186,8 +185,9 @@ public class MailService {
      * @param subject    Email subject
      * @param htmlPath   Path to HTML file in resources
      * @throws MessagingException If email sending fails
+     * @throws IOException If image loading fails
      */
-    public void send(List<String> recipients, String subject, String htmlPath) throws MessagingException {
+    public void send(List<String> recipients, String subject, String htmlPath) throws MessagingException, IOException {
         sendEmail(recipients, subject, htmlPath, false);
     }
 
@@ -196,7 +196,7 @@ public class MailService {
             MailService mailService = new MailService();
             List<String> recipients = List.of("khai1234sd@gmail.com");
             mailService.sendVerify(recipients, "Test Verification", "123456");
-        } catch (MessagingException e) {
+        } catch (MessagingException | IOException e) {
             logger.error("Failed to send email", e);
         }
     }
