@@ -20,8 +20,12 @@ import java.util.logging.Logger;
  * logs are generated to provide feedback on the operation's status.
  */
 public class DBContext {
-    protected Connection connection;
+    protected static Connection connection;
     private static final String NAME_CLASS = "DBContext";
+
+    public static Connection getConnection() {
+        return connection;
+    }
 
     /**
      * Constructor for the DBContext class.
