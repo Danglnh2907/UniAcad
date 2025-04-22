@@ -1,4 +1,4 @@
-package util;
+package util.excel;
 
 public class ExcelService {
 }

@@ -1,4 +1,4 @@
-package util;
+package util.database;
 
 import java.sql.Connection;
 import java.util.Properties;
