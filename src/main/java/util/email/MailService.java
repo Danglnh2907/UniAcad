@@ -474,23 +474,16 @@ public class MailService {
 
             // Personalized variables for recipients
             Map<String, Map<String, Object>> variables = new HashMap<>();
-            variables.put("khai1234sd@gmail.com", Map.of(
-                    "name", "Khai Nguyen Hoang",
+            variables.put("nguyenhuyencanhoa@gmail.com", Map.of(
+                    "name", "Nguyễn Thị Huyền",
                     "token", "abc123",
                     "verificationLink", mailService.baseUrl + "/verify?token=abc123",
                     "items", List.of("Item 1", "Item 2")
             ));
-            variables.put("khainhce182286@fpt.edu.vn", Map.of(
-                    "name", "Jane Smith",
-                    "token", "xyz789",
-                    "verificationLink", mailService.baseUrl + "/verify?token=xyz789",
-                    "items", List.of("Item A", "Item B")
-            ));
 
             // Embedded images
             Map<String, String> imageMap = Map.of(
-                    "img/1cd2ff272e2531b8041264de38db1b5f.png", "banner",
-                    "img/4d3b20f647cbdeb288013a15cce39fdf.jpg", "icon"
+                    "img/1cd2ff272e2531b8041264de38db1b5f.png", "banner"
             );
 
             // PDF paths
