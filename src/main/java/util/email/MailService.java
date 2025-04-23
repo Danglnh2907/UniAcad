@@ -3,75 +3,132 @@ package util.email;
 import jakarta.activation.DataHandler;
 import jakarta.mail.*;
 import jakarta.mail.internet.*;
+import jakarta.mail.util.ByteArrayDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.file.FileService;
-import jakarta.mail.util.ByteArrayDataSource;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.io.InputStream;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
- * Service for sending HTML emails using Gmail SMTP.
+ * Service for sending personalized HTML emails with embedded images and attachments using Jakarta EE 11.
  */
 public class MailService {
     private static final Logger logger = LoggerFactory.getLogger(MailService.class);
-    private static final String HOST = "smtp.gmail.com";
-    private static final int PORT = 587;
-    private static final String BASE_URL = "http://localhost:9090/UniAcad_war_exploded";
-    private static final String VERIFICATION_TEMPLATE_PATH = "templates/verification-email.html";
+    private static final String SMTP_HOST = "smtp.gmail.com";
+    private static final int SMTP_PORT = 587;
+    private static final String SMTP_AUTH = "true";
+    private static final String SMTP_STARTTLS = "true";
+    private static final String BASE_URL = "http://localhost:9090/UniAcad_war";
 
     private final String username;
     private final String password;
     private final Properties smtpProperties;
-    private final Properties oauthProperties;
+    private final Map<String, byte[]> resourceCache;
 
     /**
-     * Constructs a MailService with Gmail credentials loaded from oauth.properties.
+     * Constructs a MailService with SMTP credentials.
+     *
+     * @throws RuntimeException If configuration is invalid
      */
     public MailService() {
         this.username = "uiniacad.dev@gmail.com";
-        this.password = "uxgo qecc roxv okxh"; // Consider using environment variables
+        this.password = "uxgo qecc roxv okxh";
+        if (this.password == null || this.password.isBlank()) {
+            throw new RuntimeException("MAIL_PASSWORD environment variable is not set");
+        }
 
         this.smtpProperties = new Properties();
-        smtpProperties.put("mail.smtp.auth", "true");
-        smtpProperties.put("mail.smtp.host", HOST);
-        smtpProperties.put("mail.smtp.port", PORT);
-        smtpProperties.put("mail.smtp.starttls.enable", "true");
+        smtpProperties.put("mail.smtp.auth", SMTP_AUTH);
+        smtpProperties.put("mail.smtp.host", SMTP_HOST);
+        smtpProperties.put("mail.smtp.port", SMTP_PORT);
+        smtpProperties.put("mail.smtp.starttls.enable", SMTP_STARTTLS);
 
-        this.oauthProperties = new Properties();
-        try {
-            oauthProperties.load(getClass().getResourceAsStream("/oauth.properties"));
-        } catch (IOException e) {
-            logger.error("Failed to load oauth.properties", e);
-            throw new RuntimeException("Configuration error", e);
+        this.resourceCache = new HashMap<>();
+    }
+
+    /**
+     * Loads and caches a resource (HTML or image) from the classpath.
+     *
+     * @param resourcePath Path to the resource
+     * @return Resource content as byte array
+     * @throws IOException If resource loading fails
+     */
+    private byte[] loadResource(String resourcePath) throws IOException {
+        if (resourceCache.containsKey(resourcePath)) {
+            return resourceCache.get(resourcePath);
+        }
+        try (InputStream stream = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
+            if (stream == null) {
+                throw new IOException("Resource not found: " + resourcePath);
+            }
+            byte[] content = stream.readAllBytes();
+            resourceCache.put(resourcePath, content);
+            return content;
         }
     }
 
     /**
-     * Sends an HTML email to a list of recipients with embedded images.
+     * Sends personalized HTML emails to recipients with embedded images and optional attachments.
      *
-     * @param recipients List of recipient email addresses
-     * @param subject    Email subject
-     * @param content    HTML content or verification token
-     * @param isVerify   True if sending verification email, false for generic HTML
-     * @throws MessagingException If email sending fails
-     * @throws IOException If image loading fails
+     * @param htmlPath        Path to the HTML template in resources
+     * @param recipients      List of recipient email addresses
+     * @param subject         Email subject
+     * @param variables       Map of recipient email to their specific variables (e.g., {{name}}, {{token}})
+     * @param imageMap        Map of image resource paths to their Content-IDs for embedding
+     * @param attachments     Optional list of attachments
+     * @return List of recipients for whom email sending failed
+     * @throws IOException If HTML template or image loading fails
+     * @throws MessagingException If email configuration is invalid
+     *
+     * @example
+     * Map<String, Map<String, String>> variables = Map.of(
+     *     "user1@example.com", Map.of("name", "John", "token", "abc123"),
+     *     "user2@example.com", Map.of("name", "Jane", "token", "xyz789")
+     * );
+     * Map<String, String> images = Map.of("img/banner.png", "banner");
+     * List<Attachment> attachments = List.of(new Attachment("doc.pdf", pdfBytes, "application/pdf"));
+     * mailService.sendPersonalized("templates/email.html", List.of("user1@example.com", "user2@example.com"),
+     *     "Welcome", variables, images, attachments);
      */
-    public void sendEmail(List<String> recipients, String subject, String content, boolean isVerify) throws MessagingException, IOException {
-        InternetAddress[] addresses = recipients.stream()
-                .map(email -> {
-                    try {
-                        return new InternetAddress(email);
-                    } catch (AddressException e) {
-                        logger.warn("Invalid email address: {}", email, e);
-                        throw new RuntimeException("Invalid email: " + email, e);
-                    }
-                })
-                .toArray(InternetAddress[]::new);
+    public List<String> sendPersonalized(
+            String htmlPath,
+            List<String> recipients,
+            String subject,
+            Map<String, Map<String, String>> variables,
+            Map<String, String> imageMap,
+            List<Attachment> attachments) throws IOException, MessagingException {
+        if (recipients == null || recipients.isEmpty()) {
+            throw new IllegalArgumentException("Recipient list cannot be empty");
+        }
+        if (htmlPath == null || htmlPath.isBlank()) {
+            throw new IllegalArgumentException("HTML template path cannot be empty");
+        }
+        if (variables == null) {
+            throw new IllegalArgumentException("Variables map cannot be null");
+        }
 
+        // Load HTML template
+        String htmlTemplate = FileService.readFileFromResources(htmlPath);
+
+        // Validate placeholders in HTML
+        Set<String> placeholders = extractPlaceholders(htmlTemplate);
+        for (String recipient : recipients) {
+            Map<String, String> recipientVars = variables.getOrDefault(recipient, Map.of());
+            for (String placeholder : placeholders) {
+                if (!recipientVars.containsKey(placeholder) && !placeholder.equals("baseUrl")) {
+                    logger.warn("Missing variable '{}' for recipient '{}'. Using empty string.", placeholder, recipient);
+                }
+            }
+        }
+
+        // Validate recipients and send emails
+        List<String> failedRecipients = new ArrayList<>();
         Session session = Session.getInstance(smtpProperties, new Authenticator() {
             @Override
             protected PasswordAuthentication getPasswordAuthentication() {
@@ -79,139 +136,191 @@ public class MailService {
             }
         });
 
-        MimeMessage message = new MimeMessage(session);
-        message.setFrom(new InternetAddress(username));
-        message.setSubject(subject);
-        message.setRecipients(Message.RecipientType.TO, addresses);
+        for (String recipient : recipients) {
+            try {
+                // Validate recipient email
+                InternetAddress address = new InternetAddress(recipient);
 
-        // Create a multipart object to hold HTML and images
-        MimeMultipart multipart = new MimeMultipart("related");
+                // Create personalized email
+                MimeMessage message = new MimeMessage(session);
+                message.setFrom(new InternetAddress(username));
+                message.setRecipient(Message.RecipientType.TO, address);
+                message.setSubject(subject);
 
-        // Load and add the HTML content
-        String emailContent = isVerify ? buildVerificationEmail(content) : FileService.readFileFromResources(content);
-        MimeBodyPart htmlPart = new MimeBodyPart();
-        htmlPart.setContent(emailContent, "text/html; charset=utf-8");
-        multipart.addBodyPart(htmlPart);
+                // Create multipart content
+                MimeMultipart multipart = new MimeMultipart("related");
 
-        // List of images to embed
-        String[] imagePaths = {
-                "img/948015252763872ed01b79cbbbb7c68b.png", // Banner image
-                "img/f8d71b6c42f7300871f9e091c6a737e3.jpg", // Email icon
-                "img/4d3b20f647cbdeb288013a15cce39fdf.jpg", // Text icon
-                "img/1cd2ff272e2531b8041264de38db1b5f.png", // X icon
-                "img/51a2644c1491853d60a9688ed8f4fa9e.png", // Instagram icon
-                "img/7575b9251670cd15f3423fd911239179.png"  // Facebook icon
-        };
-        String[] contentIds = {
-                "banner",
-                "email_icon",
-                "text_icon",
-                "x_icon",
-                "instagram_icon",
-                "facebook_icon"
-        };
+                // Personalize HTML content
+                String emailContent = personalizeContent(htmlTemplate, variables.getOrDefault(recipient, Map.of()));
+                MimeBodyPart htmlPart = new MimeBodyPart();
+                htmlPart.setContent(emailContent, "text/html; charset=utf-8");
+                multipart.addBodyPart(htmlPart);
 
-        // Embed each image
-        for (int i = 0; i < imagePaths.length; i++) {
-            MimeBodyPart imagePart = new MimeBodyPart();
-            byte[] imageBytes = getClass().getClassLoader().getResourceAsStream(imagePaths[i]).readAllBytes();
-            ByteArrayDataSource dataSource = new ByteArrayDataSource(imageBytes, getMimeType(imagePaths[i]));
-            imagePart.setDataHandler(new DataHandler(dataSource));
-            imagePart.setHeader("Content-ID", "<" + contentIds[i] + ">");
-            imagePart.setDisposition(MimeBodyPart.INLINE);
-            multipart.addBodyPart(imagePart);
+                // Embed images
+                if (imageMap != null) {
+                    for (Map.Entry<String, String> image : imageMap.entrySet()) {
+                        MimeBodyPart imagePart = new MimeBodyPart();
+                        byte[] imageBytes = loadResource(image.getKey());
+                        ByteArrayDataSource dataSource = new ByteArrayDataSource(imageBytes, getMimeType(image.getKey()));
+                        imagePart.setDataHandler(new DataHandler(dataSource));
+                        imagePart.setHeader("Content-ID", "<" + image.getValue() + ">");
+                        imagePart.setDisposition(MimeBodyPart.INLINE);
+                        multipart.addBodyPart(imagePart);
+                    }
+                }
+
+                // Add attachments
+                if (attachments != null) {
+                    for (Attachment attachment : attachments) {
+                        MimeBodyPart attachmentPart = new MimeBodyPart();
+                        ByteArrayDataSource attachmentSource = new ByteArrayDataSource(attachment.content, attachment.mimeType);
+                        attachmentPart.setDataHandler(new DataHandler(attachmentSource));
+                        attachmentPart.setFileName(attachment.fileName);
+                        multipart.addBodyPart(attachmentPart);
+                    }
+                }
+
+                // Set message content and send
+                message.setContent(multipart);
+                Transport.send(message);
+                logger.info("Email sent successfully to {}", recipient);
+            } catch (AddressException e) {
+                logger.warn("Invalid email address: {}", recipient, e);
+                failedRecipients.add(recipient);
+            } catch (MessagingException | IOException e) {
+                logger.error("Failed to send email to {}", recipient, e);
+                failedRecipients.add(recipient);
+            }
         }
 
-        // Set the multipart content in the message
-        message.setContent(multipart);
-
-        Transport.send(message);
-        logger.info("Email sent successfully to {}", String.join(", ", recipients));
+        return failedRecipients;
     }
 
     /**
-     * Builds an HTML email for account verification by loading a template and injecting dynamic values.
+     * Extracts placeholders (e.g., {{name}}) from the HTML template.
      *
-     * @param token Verification token
-     * @return HTML email content
+     * @param htmlTemplate HTML template content
+     * @return Set of placeholder names
      */
-    private String buildVerificationEmail(String token) {
-        String verificationLink = String.format("%s/verify?token=%s", BASE_URL, token);
-        String fromEmail = oauthProperties.getProperty("oauth.email", username);
-
-        try {
-            String template = FileService.readFileFromResources(VERIFICATION_TEMPLATE_PATH);
-            return template
-                    .replace("{{verificationLink}}", verificationLink)
-                    .replace("{{fromEmail}}", fromEmail)
-                    .replace("{{baseUrl}}", BASE_URL);
-        } catch (Exception e) {
-            logger.error("Failed to load or process verification email template", e);
-            throw new RuntimeException("Cannot load verification email template", e);
+    private Set<String> extractPlaceholders(String htmlTemplate) {
+        Set<String> placeholders = new HashSet<>();
+        Pattern pattern = Pattern.compile("\\{\\{(\\w+)\\}\\}");
+        Matcher matcher = pattern.matcher(htmlTemplate);
+        while (matcher.find()) {
+            placeholders.add(matcher.group(1));
         }
+        return placeholders;
+    }
+
+    /**
+     * Personalizes the HTML content by replacing placeholders with recipient-specific variables.
+     *
+     * @param htmlTemplate HTML template with placeholders (e.g., {{name}})
+     * @param variables    Map of placeholder keys to their values
+     * @return Personalized HTML content
+     */
+    private String personalizeContent(String htmlTemplate, Map<String, String> variables) {
+        String content = htmlTemplate;
+        Set<String> placeholders = extractPlaceholders(htmlTemplate);
+        for (String placeholder : placeholders) {
+            String value = variables.getOrDefault(placeholder, "");
+            if (placeholder.equals("baseUrl")) {
+                value = BASE_URL;
+            }
+            content = content.replace("{{" + placeholder + "}}", value);
+        }
+        return content;
     }
 
     /**
      * Determines the MIME type based on file extension.
      *
-     * @param filePath Path to the image file
+     * @param filePath Path to the file
      * @return MIME type (e.g., "image/png" or "image/jpeg")
      */
     private String getMimeType(String filePath) {
-        if (filePath.toLowerCase().endsWith(".png")) {
+        String lowerCasePath = filePath.toLowerCase();
+        if (lowerCasePath.endsWith(".png")) {
             return "image/png";
-        } else if (filePath.toLowerCase().endsWith(".jpg") || filePath.toLowerCase().endsWith(".jpeg")) {
+        } else if (lowerCasePath.endsWith(".jpg") || lowerCasePath.endsWith(".jpeg")) {
             return "image/jpeg";
         }
         return "application/octet-stream";
     }
 
     /**
-     * Sends a verification email to each recipient with their unique token.
-     *
-     * @param recipientToToken Map of recipient email addresses to their unique verification tokens
-     * @param subject          Email subject
-     * @throws MessagingException If email sending fails
-     * @throws IOException If image loading fails
+     * Represents an email attachment.
      */
-    public void sendVerify(Map<String, String> recipientToToken, String subject) throws MessagingException, IOException {
-        for (Map.Entry<String, String> entry : recipientToToken.entrySet()) {
-            String recipient = entry.getKey();
-            String token = entry.getValue();
-            List<String> singleRecipient = List.of(recipient);
-            try {
-                sendEmail(singleRecipient, subject, token, true);
-            } catch (MessagingException | IOException e) {
-                logger.error("Failed to send email to {}", recipient, e);
-                throw e; // Re-throw to allow caller to handle failures
-            }
+    public static class Attachment {
+        private final String fileName;
+        private final byte[] content;
+        private final String mimeType;
+
+        public Attachment(String fileName, byte[] content, String mimeType) {
+            this.fileName = fileName;
+            this.content = content;
+            this.mimeType = mimeType != null ? mimeType : "application/octet-stream";
         }
     }
 
     /**
-     * Sends an HTML email using a file from resources.
-     *
-     * @param recipients List of recipient email addresses
-     * @param subject    Email subject
-     * @param htmlPath   Path to HTML file in resources
-     * @throws MessagingException If email sending fails
-     * @throws IOException If image loading fails
+     * Demo method to showcase sending personalized emails.
      */
-    public void send(List<String> recipients, String subject, String htmlPath) throws MessagingException, IOException {
-        sendEmail(recipients, subject, htmlPath, false);
-    }
-
     public static void main(String[] args) {
         try {
+            // Initialize MailService
             MailService mailService = new MailService();
-            Map<String, String> recipientToToken = Map.of(
-                    "khainhce182286@fpt.edu.vn", "token123",
-                    "khaiproject1234@gmail.com", "token456",
-                    "tho551506@gmail.com", "token789"
+
+            // Danh sách người nhận
+            List<String> recipients = List.of(
+                    "khai1234sd@gmail.com",
+                    "khainhce182286@fpt.edu.vn"
             );
-            mailService.sendVerify(recipientToToken, "Test Verification");
-        } catch (MessagingException | IOException e) {
-            logger.error("Failed to send emails", e);
+
+            // Biến cá nhân hóa cho mỗi người nhận
+            Map<String, Map<String, String>> variables = new HashMap<>();
+            variables.put("khai1234sd@gmail.com", Map.of(
+                    "name", "Khai Nguyen Hoang",
+                    "token", "abc123",
+                    "verificationLink", BASE_URL + "/verify?token=abc123"
+            ));
+            variables.put("khainhce182286@fpt.edu.vn", Map.of(
+                    "name", "Jane Smith",
+                    "token", "xyz789",
+                    "verificationLink", BASE_URL + "/verify?token=xyz789"
+            ));
+
+            // Danh sách ảnh cần nhúng
+            Map<String, String> imageMap = Map.of(
+                    "img/1cd2ff272e2531b8041264de38db1b5f.png", "banner",
+                    "img/4d3b20f647cbdeb288013a15cce39fdf.jpg", "icon"
+            );
+
+            // Tệp đính kèm (giả lập)
+            byte[] pdfBytes = "Sample PDF content".getBytes();
+            List<Attachment> attachments = List.of(
+                    new Attachment("document.pdf", pdfBytes, "pdf/demo.pdf")
+            );
+
+            // Gửi email
+            List<String> failedRecipients = mailService.sendPersonalized(
+                    "templates/email.html",
+                    recipients,
+                    "Welcome to Our Service",
+                    variables,
+                    imageMap,
+                    attachments
+            );
+
+            // Báo cáo kết quả
+            if (failedRecipients.isEmpty()) {
+                System.out.println("All emails sent successfully!");
+            } else {
+                System.out.println("Failed to send emails to: " + failedRecipients);
+            }
+        } catch (IOException | MessagingException e) {
+            logger.error("Demo failed", e);
+            System.out.println("Demo failed: " + e.getMessage());
         }
     }
 }
