@@ -50,7 +50,6 @@ public class GoogleAuthServlet extends HttpServlet {
 
             String clientId = oauthProps.getProperty("oauth.client_id");
             String clientSecret = oauthProps.getProperty("oauth.client_secret");
-            String redirectUri = oauthProps.getProperty("oauth.google_redirect_uri");
             String scope = oauthProps.getProperty("oauth.google_scope");
 
             GoogleClientSecrets.Details web = new GoogleClientSecrets.Details();
@@ -75,7 +74,7 @@ public class GoogleAuthServlet extends HttpServlet {
         if (code == null) {
             // Step 1: Redirect to Google OAuth
             AuthorizationCodeRequestUrl authUrl = flow.newAuthorizationUrl()
-                    .setRedirectUri(getRedirectUri(request));
+                    .setRedirectUri(getRedirectUri());
             LOGGER.info("Redirecting to: " + authUrl.build());
             response.sendRedirect(authUrl.build());
             return;
@@ -84,7 +83,7 @@ public class GoogleAuthServlet extends HttpServlet {
         // Step 2: Process callback from Google
         try {
             TokenResponse tokenResponse = flow.newTokenRequest(code)
-                    .setRedirectUri(getRedirectUri(request))
+                    .setRedirectUri(getRedirectUri())
                     .execute();
 
             String accessToken = tokenResponse.getAccessToken();
@@ -97,7 +96,7 @@ public class GoogleAuthServlet extends HttpServlet {
             String userInfoJson = userInfoResponse.parseAsString();
             com.google.gson.Gson gson = new com.google.gson.Gson();
             com.google.gson.JsonObject userInfo = gson.fromJson(userInfoJson, com.google.gson.JsonObject.class);
-
+            Logger.getLogger("GoogleAuthServlet").info("User info: " + userInfo);
             String email = userInfo.get("email").getAsString();
             String fullName = userInfo.get("name") != null ? userInfo.get("name").getAsString() : "Unknown";
 
@@ -114,7 +113,7 @@ public class GoogleAuthServlet extends HttpServlet {
         }
     }
 
-    private String getRedirectUri(HttpServletRequest request) {
+    private String getRedirectUri() {
         Properties oauthProps = new Properties();
         try (InputStream input = getClass().getClassLoader().getResourceAsStream("oauth.properties")) {
             oauthProps.load(input);

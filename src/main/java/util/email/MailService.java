@@ -570,7 +570,12 @@ public class MailService {
 
             // Hình ảnh nhúng
             Map<String, String> imageMap = Map.of(
-                    "img/1cd2ff272e2531b8041264de38db1b5f.png", "banner"
+                    "img/f8d71b6c42f7300871f9e091c6a737e3.jpg", "emailIcon",
+                    "img/4d3b20f647cbdeb288013a15cce39fdf.jpg", "textIcon",
+                    "img/1cd2ff272e2531b8041264de38db1b5f.png", "xIcon",
+                    "img/51a2644c1491853d60a9688ed8f4fa9e.png", "instagramIcon",
+                    "img/7575b9251670cd15f3423fd911239179.png", "facebookIcon",
+                    "img/948015252763872ed01b79cbbbb7c68b.png","bannerIcon"
             );
 
             // Đường dẫn tệp đính kèm (PDF, Word, Excel)
@@ -584,7 +589,7 @@ public class MailService {
 
             // Gửi email với kích thước lô là 10
             Map<String, String> failedRecipients = mailService.sendPersonalizedWithAttachments(
-                    "email",
+                    "verification-email.html",
                     "Chào mừng đến với Dịch vụ của chúng tôi",
                     variables,
                     imageMap,
