@@ -491,10 +491,10 @@ public class MailService {
         logger.info("Đang tắt ThreadPool của MailService...");
         executorService.shutdown();
         try {
-            if (!executorService.awaitTermination(15, TimeUnit.SECONDS)) {
+            if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
                 logger.warn("ThreadPool không kết thúc trong thời gian chờ, buộc tắt...");
                 executorService.shutdownNow();
-                if (!executorService.awaitTermination(10, TimeUnit.SECONDS)) {
+                if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
                     logger.error("ThreadPool không kết thúc sau khi buộc tắt");
                 }
             }
