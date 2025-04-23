@@ -1,19 +1,28 @@
 package util.email;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import io.github.bucket4j.Bandwidth;
+import io.github.bucket4j.Bucket;
+import io.github.bucket4j.Refill;
 import jakarta.activation.DataHandler;
 import jakarta.mail.*;
 import jakarta.mail.internet.*;
 import jakarta.mail.util.ByteArrayDataSource;
+import org.jsoup.Jsoup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.file.FileService;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.concurrent.*;
 
 /**
  * Service for sending personalized HTML emails with embedded images and attachments using Jakarta EE 11.
@@ -26,89 +35,69 @@ public class MailService {
     private static final String SMTP_STARTTLS = "true";
     private static final String BASE_URL = "http://localhost:9090/UniAcad_war";
 
-    private final String username;
-    private final String password;
+    private final String username = "uiniacad.dev@gmail.com";
+    private final String password = "uxgo qecc roxv okxh";
     private final Properties smtpProperties;
-    private final Map<String, byte[]> resourceCache;
+    private final Cache<String, byte[]> resourceCache;
     private final ExecutorService executorService;
+    private final Bucket rateLimiter;
 
     /**
-     * Constructs a MailService with SMTP credentials.
-     *
-     * @throws RuntimeException If configuration is invalid
+     * Constructs a MailService with SMTP credentials and rate limiting.
      */
     public MailService() {
-        this.username = "uiniacad.dev@gmail.com";
-        this.password = "uxgo qecc roxv okxh";
-
+        // SMTP configuration
         this.smtpProperties = new Properties();
         smtpProperties.put("mail.smtp.auth", SMTP_AUTH);
         smtpProperties.put("mail.smtp.host", SMTP_HOST);
         smtpProperties.put("mail.smtp.port", SMTP_PORT);
         smtpProperties.put("mail.smtp.starttls.enable", SMTP_STARTTLS);
 
-        this.resourceCache = Collections.synchronizedMap(new HashMap<>());
-        this.executorService = Executors.newFixedThreadPool(4); // Giới hạn 4 luồng
+        // Resource cache with size limit and expiration
+        this.resourceCache = Caffeine.newBuilder()
+                .maximumSize(100)
+                .expireAfterWrite(Duration.ofHours(1))
+                .build();
+
+        // Thread pool for sending emails
+        this.executorService = Executors.newFixedThreadPool(4);
+
+        // Rate limiter: 100 emails per minute
+        Bandwidth limit = Bandwidth.classic(100, Refill.greedy(100, Duration.ofMinutes(1)));
+        this.rateLimiter = Bucket.builder().addLimit(limit).build();
     }
 
     /**
-     * Loads and caches a resource (HTML or image) from the classpath.
+     * Sends personalized HTML emails to recipients with embedded images and optional attachments.
      *
-     * @param resourcePath Path to the resource
-     * @return Resource content as byte array
-     * @throws IOException If resource loading fails
-     */
-    private byte[] loadResource(String resourcePath) throws IOException {
-        if (resourceCache.containsKey(resourcePath)) {
-            return resourceCache.get(resourcePath);
-        }
-        try (InputStream stream = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
-            if (stream == null) {
-                throw new IOException("Resource not found: " + resourcePath);
-            }
-            byte[] content = stream.readAllBytes();
-            resourceCache.put(resourcePath, content);
-            return content;
-        }
-    }
-
-    /**
-     * Sends personalized HTML emails to recipients with embedded images and optional attachments using multiple threads.
-     *
-     * @param htmlPath        Path to the HTML template in resources
-     * @param recipients      List of recipient email addresses
-     * @param subject         Email subject
-     * @param variables       Map of recipient email to their specific variables (e.g., {{name}}, {{token}})
-     * @param imageMap        Map of image resource paths to their Content-IDs for embedding
-     * @param attachments     Optional list of attachments
+     * @param htmlPath    Path to the HTML template in resources
+     * @param subject     Email subject
+     * @param variables   Map of recipient email to their specific variables
+     * @param imageMap    Map of image resource paths to their Content-IDs
+     * @param attachments Optional list of attachments
      * @return List of recipients for whom email sending failed
-     * @throws IOException If HTML template or image loading fails
+     * @throws IOException        If HTML template or image loading fails
      * @throws MessagingException If email configuration is invalid
      */
     public List<String> sendPersonalized(
             String htmlPath,
-            List<String> recipients,
             String subject,
             Map<String, Map<String, String>> variables,
             Map<String, String> imageMap,
             List<Attachment> attachments) throws IOException, MessagingException {
-        if (recipients == null || recipients.isEmpty()) {
-            throw new IllegalArgumentException("Recipient list cannot be empty");
-        }
-        if (htmlPath == null || htmlPath.isBlank()) {
-            throw new IllegalArgumentException("HTML template path cannot be empty");
-        }
-        if (variables == null) {
-            throw new IllegalArgumentException("Variables map cannot be null");
+
+        if (variables == null || variables.isEmpty()) {
+            throw new IllegalArgumentException("Variables map cannot be null or empty");
         }
 
-        // Load HTML template
+        // Load and validate HTML template
         String htmlTemplate = FileService.readFileFromResources(htmlPath);
-
-        // Validate placeholders in HTML
+        validateHtmlTemplate(htmlTemplate);
         Set<String> placeholders = extractPlaceholders(htmlTemplate);
-        for (String recipient : recipients) {
-            Map<String, String> recipientVars = variables.getOrDefault(recipient, Map.of());
+
+        // Validate placeholders for each recipient
+        for (String recipient : variables.keySet()) {
+            Map<String, String> recipientVars = variables.get(recipient);
             for (String placeholder : placeholders) {
                 if (!recipientVars.containsKey(placeholder) && !placeholder.equals("baseUrl")) {
                     logger.warn("Missing variable '{}' for recipient '{}'. Using empty string.", placeholder, recipient);
@@ -120,9 +109,12 @@ public class MailService {
         List<String> failedRecipients = Collections.synchronizedList(new ArrayList<>());
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
-        for (String recipient : recipients) {
+        for (String recipient : variables.keySet()) {
             CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
                 try {
+                    // Apply rate limiting
+                    rateLimiter.asBlocking().consume(1);
+
                     // Validate recipient email
                     InternetAddress address = new InternetAddress(recipient);
 
@@ -172,25 +164,80 @@ public class MailService {
                         }
                     }
 
-                    // Set message content and send
-                    message.setContent(multipart);
-                    Transport.send(message);
-                    logger.info("Email sent successfully to {}", recipient);
+                    // Retry mechanism for sending email
+                    int maxRetries = 3;
+                    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+                        try {
+                            message.setContent(multipart);
+                            Transport.send(message);
+                            logger.info("Email sent successfully to {}", recipient);
+                            break;
+                        } catch (MessagingException e) {
+                            if (attempt == maxRetries) {
+                                logger.error("Failed to send email to {} after {} attempts", recipient, maxRetries, e);
+                                failedRecipients.add(recipient);
+                            } else {
+                                try {
+                                    Thread.sleep(2000 * attempt); // Exponential backoff
+                                } catch (InterruptedException ie) {
+                                    Thread.currentThread().interrupt();
+                                }
+                            }
+                        }
+                    }
                 } catch (AddressException e) {
                     logger.warn("Invalid email address: {}", recipient, e);
                     failedRecipients.add(recipient);
                 } catch (MessagingException | IOException e) {
                     logger.error("Failed to send email to {}", recipient, e);
                     failedRecipients.add(recipient);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
                 }
             }, executorService);
+
             futures.add(future);
         }
 
         // Wait for all emails to be sent
         CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-
         return failedRecipients;
+    }
+
+    /**
+     * Validates the HTML template using Jsoup.
+     *
+     * @param htmlTemplate HTML template content
+     * @throws IllegalArgumentException If HTML is invalid
+     */
+    private void validateHtmlTemplate(String htmlTemplate) {
+        try {
+            Jsoup.parse(htmlTemplate);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Invalid HTML template: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Loads and caches a resource (HTML or image) from the classpath.
+     *
+     * @param resourcePath Path to the resource
+     * @return Resource content as byte array
+     * @throws IOException If resource loading fails
+     */
+    private byte[] loadResource(String resourcePath) throws IOException {
+        byte[] cachedContent = resourceCache.getIfPresent(resourcePath);
+        if (cachedContent != null) {
+            return cachedContent;
+        }
+        try (InputStream stream = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
+            if (stream == null) {
+                throw new IOException("Resource not found: " + resourcePath);
+            }
+            byte[] content = stream.readAllBytes();
+            resourceCache.put(resourcePath, content);
+            return content;
+        }
     }
 
     /**
@@ -212,7 +259,7 @@ public class MailService {
     /**
      * Personalizes the HTML content by replacing placeholders with recipient-specific variables.
      *
-     * @param htmlTemplate HTML template with placeholders (e.g., {{name}})
+     * @param htmlTemplate HTML template with placeholders
      * @param variables    Map of placeholder keys to their values
      * @return Personalized HTML content
      */
@@ -230,19 +277,39 @@ public class MailService {
     }
 
     /**
-     * Determines the MIME type based on file extension.
+     * Determines the MIME type based on file extension or content probing.
      *
      * @param filePath Path to the file
-     * @return MIME type (e.g., "image/png" or "image/jpeg")
+     * @return MIME type
      */
     private String getMimeType(String filePath) {
-        String lowerCasePath = filePath.toLowerCase();
-        if (lowerCasePath.endsWith(".png")) {
-            return "image/png";
-        } else if (lowerCasePath.endsWith(".jpg") || lowerCasePath.endsWith(".jpeg")) {
-            return "image/jpeg";
+        try {
+            String mimeType = Files.probeContentType(Paths.get(filePath));
+            return mimeType != null ? mimeType : "application/octet-stream";
+        } catch (IOException e) {
+            String lowerCasePath = filePath.toLowerCase();
+            if (lowerCasePath.endsWith(".png")) return "image/png";
+            if (lowerCasePath.endsWith(".jpg") || lowerCasePath.endsWith(".jpeg")) return "image/jpeg";
+            if (lowerCasePath.endsWith(".gif")) return "image/gif";
+            if (lowerCasePath.endsWith(".pdf")) return "application/pdf";
+            if (lowerCasePath.endsWith(".docx")) return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+            return "application/octet-stream";
         }
-        return "application/octet-stream";
+    }
+
+    /**
+     * Shuts down the executor service gracefully.
+     */
+    public void shutdown() {
+        executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(60, TimeUnit.SECONDS)) {
+                executorService.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            executorService.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
 
     /**
@@ -265,18 +332,9 @@ public class MailService {
      */
     public static void main(String[] args) {
         try {
-            // Initialize MailService
             MailService mailService = new MailService();
 
-            // Danh sách người nhận
-            List<String> recipients = List.of(
-                    "khai1234sd@gmail.com",
-                    "khainhce182286@fpt.edu.vn",
-                    "khaiproject1234@gmail.com",
-                    "nkhai7018@gmail.com"
-            );
-
-            // Biến cá nhân hóa cho mỗi người nhận
+            // Personalized variables for recipients
             Map<String, Map<String, String>> variables = new HashMap<>();
             variables.put("khai1234sd@gmail.com", Map.of(
                     "name", "Khai Nguyen Hoang",
@@ -288,48 +346,40 @@ public class MailService {
                     "token", "xyz789",
                     "verificationLink", BASE_URL + "/verify?token=xyz789"
             ));
-            variables.put("khaiproject1234@gmail.com",Map.of(
-                    "name","Khai Project",
-                    "token","123456",
-                    "verificationLink", BASE_URL + "/verify?token=123456"
-            ));
-            variables.put("nkhai7018@gmail.com",Map.of(
-                    "name","Khai Nguyen",
-                    "token","789012",
-                    "verificationLink", BASE_URL + "/verify?token=789012"
-            ));
 
-            // Danh sách ảnh cần nhúng
+            // Embedded images
             Map<String, String> imageMap = Map.of(
                     "img/1cd2ff272e2531b8041264de38db1b5f.png", "banner",
                     "img/4d3b20f647cbdeb288013a15cce39fdf.jpg", "icon"
             );
 
-            // Tệp đính kèm (giả lập)
+            // Attachments
             byte[] pdfBytes = "Sample PDF content".getBytes();
             List<Attachment> attachments = List.of(
                     new Attachment("document.pdf", pdfBytes, "pdf/demo.pdf")
             );
 
-            // Gửi email
+            // Send emails
             List<String> failedRecipients = mailService.sendPersonalized(
                     "templates/email.html",
-                    recipients,
                     "Welcome to Our Service",
                     variables,
                     imageMap,
                     attachments
             );
 
-            // Báo cáo kết quả
+            // Report results
             if (failedRecipients.isEmpty()) {
-                LoggerFactory.getLogger(MailService.class).info("All emails sent successfully");
+                System.out.println("All emails sent successfully!");
             } else {
-                LoggerFactory.getLogger(MailService.class).warn("Failed to send emails to: {}", failedRecipients);
+                System.out.println("Failed to send emails to: " + failedRecipients);
             }
+
+            // Cleanup
+            mailService.shutdown();
         } catch (IOException | MessagingException e) {
             logger.error("Demo failed", e);
-            LoggerFactory.getLogger("MailService").error("Demo failed", e);
+            System.out.println("Demo failed: " + e.getMessage());
         }
     }
 }
