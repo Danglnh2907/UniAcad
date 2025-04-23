@@ -13,7 +13,7 @@ import java.io.InputStream;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
+import java.util.concurrent.*;
 
 /**
  * Service for sending personalized HTML emails with embedded images and attachments using Jakarta EE 11.
@@ -30,6 +30,7 @@ public class MailService {
     private final String password;
     private final Properties smtpProperties;
     private final Map<String, byte[]> resourceCache;
+    private final ExecutorService executorService;
 
     /**
      * Constructs a MailService with SMTP credentials.
@@ -39,9 +40,6 @@ public class MailService {
     public MailService() {
         this.username = "uiniacad.dev@gmail.com";
         this.password = "uxgo qecc roxv okxh";
-        if (this.password == null || this.password.isBlank()) {
-            throw new RuntimeException("MAIL_PASSWORD environment variable is not set");
-        }
 
         this.smtpProperties = new Properties();
         smtpProperties.put("mail.smtp.auth", SMTP_AUTH);
@@ -49,7 +47,8 @@ public class MailService {
         smtpProperties.put("mail.smtp.port", SMTP_PORT);
         smtpProperties.put("mail.smtp.starttls.enable", SMTP_STARTTLS);
 
-        this.resourceCache = new HashMap<>();
+        this.resourceCache = Collections.synchronizedMap(new HashMap<>());
+        this.executorService = Executors.newFixedThreadPool(4); // Giới hạn 4 luồng
     }
 
     /**
@@ -74,7 +73,7 @@ public class MailService {
     }
 
     /**
-     * Sends personalized HTML emails to recipients with embedded images and optional attachments.
+     * Sends personalized HTML emails to recipients with embedded images and optional attachments using multiple threads.
      *
      * @param htmlPath        Path to the HTML template in resources
      * @param recipients      List of recipient email addresses
@@ -85,16 +84,6 @@ public class MailService {
      * @return List of recipients for whom email sending failed
      * @throws IOException If HTML template or image loading fails
      * @throws MessagingException If email configuration is invalid
-     *
-     * @example
-     * Map<String, Map<String, String>> variables = Map.of(
-     *     "user1@example.com", Map.of("name", "John", "token", "abc123"),
-     *     "user2@example.com", Map.of("name", "Jane", "token", "xyz789")
-     * );
-     * Map<String, String> images = Map.of("img/banner.png", "banner");
-     * List<Attachment> attachments = List.of(new Attachment("doc.pdf", pdfBytes, "application/pdf"));
-     * mailService.sendPersonalized("templates/email.html", List.of("user1@example.com", "user2@example.com"),
-     *     "Welcome", variables, images, attachments);
      */
     public List<String> sendPersonalized(
             String htmlPath,
@@ -127,71 +116,79 @@ public class MailService {
             }
         }
 
-        // Validate recipients and send emails
-        List<String> failedRecipients = new ArrayList<>();
-        Session session = Session.getInstance(smtpProperties, new Authenticator() {
-            @Override
-            protected PasswordAuthentication getPasswordAuthentication() {
-                return new PasswordAuthentication(username, password);
-            }
-        });
+        // Send emails using multiple threads
+        List<String> failedRecipients = Collections.synchronizedList(new ArrayList<>());
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
 
         for (String recipient : recipients) {
-            try {
-                // Validate recipient email
-                InternetAddress address = new InternetAddress(recipient);
+            CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+                try {
+                    // Validate recipient email
+                    InternetAddress address = new InternetAddress(recipient);
 
-                // Create personalized email
-                MimeMessage message = new MimeMessage(session);
-                message.setFrom(new InternetAddress(username));
-                message.setRecipient(Message.RecipientType.TO, address);
-                message.setSubject(subject);
+                    // Create personalized email
+                    Session session = Session.getInstance(smtpProperties, new Authenticator() {
+                        @Override
+                        protected PasswordAuthentication getPasswordAuthentication() {
+                            return new PasswordAuthentication(username, password);
+                        }
+                    });
 
-                // Create multipart content
-                MimeMultipart multipart = new MimeMultipart("related");
+                    MimeMessage message = new MimeMessage(session);
+                    message.setFrom(new InternetAddress(username));
+                    message.setRecipient(Message.RecipientType.TO, address);
+                    message.setSubject(subject);
 
-                // Personalize HTML content
-                String emailContent = personalizeContent(htmlTemplate, variables.getOrDefault(recipient, Map.of()));
-                MimeBodyPart htmlPart = new MimeBodyPart();
-                htmlPart.setContent(emailContent, "text/html; charset=utf-8");
-                multipart.addBodyPart(htmlPart);
+                    // Create multipart content
+                    MimeMultipart multipart = new MimeMultipart("related");
 
-                // Embed images
-                if (imageMap != null) {
-                    for (Map.Entry<String, String> image : imageMap.entrySet()) {
-                        MimeBodyPart imagePart = new MimeBodyPart();
-                        byte[] imageBytes = loadResource(image.getKey());
-                        ByteArrayDataSource dataSource = new ByteArrayDataSource(imageBytes, getMimeType(image.getKey()));
-                        imagePart.setDataHandler(new DataHandler(dataSource));
-                        imagePart.setHeader("Content-ID", "<" + image.getValue() + ">");
-                        imagePart.setDisposition(MimeBodyPart.INLINE);
-                        multipart.addBodyPart(imagePart);
+                    // Personalize HTML content
+                    String emailContent = personalizeContent(htmlTemplate, variables.getOrDefault(recipient, Map.of()));
+                    MimeBodyPart htmlPart = new MimeBodyPart();
+                    htmlPart.setContent(emailContent, "text/html; charset=utf-8");
+                    multipart.addBodyPart(htmlPart);
+
+                    // Embed images
+                    if (imageMap != null) {
+                        for (Map.Entry<String, String> image : imageMap.entrySet()) {
+                            MimeBodyPart imagePart = new MimeBodyPart();
+                            byte[] imageBytes = loadResource(image.getKey());
+                            ByteArrayDataSource dataSource = new ByteArrayDataSource(imageBytes, getMimeType(image.getKey()));
+                            imagePart.setDataHandler(new DataHandler(dataSource));
+                            imagePart.setHeader("Content-ID", "<" + image.getValue() + ">");
+                            imagePart.setDisposition(MimeBodyPart.INLINE);
+                            multipart.addBodyPart(imagePart);
+                        }
                     }
-                }
 
-                // Add attachments
-                if (attachments != null) {
-                    for (Attachment attachment : attachments) {
-                        MimeBodyPart attachmentPart = new MimeBodyPart();
-                        ByteArrayDataSource attachmentSource = new ByteArrayDataSource(attachment.content, attachment.mimeType);
-                        attachmentPart.setDataHandler(new DataHandler(attachmentSource));
-                        attachmentPart.setFileName(attachment.fileName);
-                        multipart.addBodyPart(attachmentPart);
+                    // Add attachments
+                    if (attachments != null) {
+                        for (Attachment attachment : attachments) {
+                            MimeBodyPart attachmentPart = new MimeBodyPart();
+                            ByteArrayDataSource attachmentSource = new ByteArrayDataSource(attachment.content, attachment.mimeType);
+                            attachmentPart.setDataHandler(new DataHandler(attachmentSource));
+                            attachmentPart.setFileName(attachment.fileName);
+                            multipart.addBodyPart(attachmentPart);
+                        }
                     }
-                }
 
-                // Set message content and send
-                message.setContent(multipart);
-                Transport.send(message);
-                logger.info("Email sent successfully to {}", recipient);
-            } catch (AddressException e) {
-                logger.warn("Invalid email address: {}", recipient, e);
-                failedRecipients.add(recipient);
-            } catch (MessagingException | IOException e) {
-                logger.error("Failed to send email to {}", recipient, e);
-                failedRecipients.add(recipient);
-            }
+                    // Set message content and send
+                    message.setContent(multipart);
+                    Transport.send(message);
+                    logger.info("Email sent successfully to {}", recipient);
+                } catch (AddressException e) {
+                    logger.warn("Invalid email address: {}", recipient, e);
+                    failedRecipients.add(recipient);
+                } catch (MessagingException | IOException e) {
+                    logger.error("Failed to send email to {}", recipient, e);
+                    failedRecipients.add(recipient);
+                }
+            }, executorService);
+            futures.add(future);
         }
+
+        // Wait for all emails to be sent
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
 
         return failedRecipients;
     }
@@ -274,7 +271,9 @@ public class MailService {
             // Danh sách người nhận
             List<String> recipients = List.of(
                     "khai1234sd@gmail.com",
-                    "khainhce182286@fpt.edu.vn"
+                    "khainhce182286@fpt.edu.vn",
+                    "khaiproject1234@gmail.com",
+                    "nkhai7018@gmail.com"
             );
 
             // Biến cá nhân hóa cho mỗi người nhận
@@ -288,6 +287,16 @@ public class MailService {
                     "name", "Jane Smith",
                     "token", "xyz789",
                     "verificationLink", BASE_URL + "/verify?token=xyz789"
+            ));
+            variables.put("khaiproject1234@gmail.com",Map.of(
+                    "name","Khai Project",
+                    "token","123456",
+                    "verificationLink", BASE_URL + "/verify?token=123456"
+            ));
+            variables.put("nkhai7018@gmail.com",Map.of(
+                    "name","Khai Nguyen",
+                    "token","789012",
+                    "verificationLink", BASE_URL + "/verify?token=789012"
             ));
 
             // Danh sách ảnh cần nhúng
@@ -314,13 +323,13 @@ public class MailService {
 
             // Báo cáo kết quả
             if (failedRecipients.isEmpty()) {
-                System.out.println("All emails sent successfully!");
+                LoggerFactory.getLogger(MailService.class).info("All emails sent successfully");
             } else {
-                System.out.println("Failed to send emails to: " + failedRecipients);
+                LoggerFactory.getLogger(MailService.class).warn("Failed to send emails to: {}", failedRecipients);
             }
         } catch (IOException | MessagingException e) {
             logger.error("Demo failed", e);
-            System.out.println("Demo failed: " + e.getMessage());
+            LoggerFactory.getLogger("MailService").error("Demo failed", e);
         }
     }
 }
