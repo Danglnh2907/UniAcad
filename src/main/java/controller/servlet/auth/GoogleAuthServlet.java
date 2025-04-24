@@ -39,6 +39,8 @@ public class GoogleAuthServlet extends HttpServlet {
 
     @Override
     public void init() throws ServletException {
+        String contextPath = String.valueOf(getServletContext().getRealPath("/"));
+        Logger.getLogger("HelloServlet").info("Context Path: " + contextPath);
         try {
             Properties oauthProps = new Properties();
             try (InputStream input = getClass().getClassLoader().getResourceAsStream("oauth.properties")) {
