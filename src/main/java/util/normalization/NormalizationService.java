@@ -1,4 +1,4 @@
-package util.service.normalization;
+package util.normalization;
 
 import org.attoparser.trace.MarkupTraceEvent;
 

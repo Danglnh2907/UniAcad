@@ -47,6 +47,11 @@
             <version>1.5.13</version>
         </dependency>
         <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-core</artifactId>
+            <version>1.5.13</version>
+        </dependency>
+        <dependency>
             <groupId>com.microsoft.sqlserver</groupId>
             <artifactId>mssql-jdbc</artifactId>
             <version>11.2.3.jre17</version>
@@ -66,6 +71,11 @@
             <groupId>com.sun.mail</groupId>
             <artifactId>jakarta.mail</artifactId>
             <version>2.0.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi</artifactId>
+            <version>5.3.0</version>
         </dependency>
         <dependency>
             <groupId>org.apache.poi</groupId>
@@ -96,6 +106,11 @@
             <groupId>de.svenkubiak</groupId>
             <artifactId>jBCrypt</artifactId>
             <version>0.4.3</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>5.4.0</version>
         </dependency>
         <dependency>
             <groupId>org.apache.poi</groupId>
@@ -160,22 +175,6 @@
             <groupId>io.github.cdimascio</groupId>
             <artifactId>dotenv-java</artifactId>
             <version>3.0.0</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-api</artifactId>
-            <version>2.20.0</version> <!-- Hoặc phiên bản mới nhất -->
-        </dependency>
-        <!-- Log4j Core -->
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-core</artifactId>
-            <version>2.20.0</version> <!-- Phải khớp với log4j-api -->
-        </dependency>
-        <dependency>
-            <groupId>org.apache.logging.log4j</groupId>
-            <artifactId>log4j-slf4j-impl</artifactId>
-            <version>2.20.0</version>
         </dependency>
     </dependencies>
 

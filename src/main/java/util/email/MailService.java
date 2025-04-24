@@ -1,4 +1,5 @@
-package util.service.email;
+
+package util.email;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -27,13 +28,13 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Advanced MailService with support for attachments (PDF, Word, Excel) and configuration from save.env.
+ * MailService nâng cao với khả năng xử lý tệp đính kèm (PDF, Word, Excel) và cấu hình từ save.env.
  */
 public class MailService {
     private static final Logger logger = LoggerFactory.getLogger(MailService.class);
     private static final int DEFAULT_BATCH_SIZE = 50;
     private static final int MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024; // 2MB
-    private static final long MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024; // 10MB for all attachments
+    private static final long MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024; // 10MB cho tất cả tệp đính kèm
 
     private final String username;
     private final String password;
@@ -46,10 +47,10 @@ public class MailService {
     private final String baseUrl;
 
     /**
-     * Initializes MailService with configuration from save.env and optimized ThreadPool.
+     * Khởi tạo MailService với cấu hình từ save.env và ThreadPool tối ưu.
      */
     public MailService() {
-        // Load configuration from save.env
+        // Tải cấu hình từ save.env
         Dotenv dotenv = Dotenv.configure()
                 .filename("save.env")
                 .ignoreIfMissing()
@@ -61,46 +62,47 @@ public class MailService {
         String smtpPortStr = dotenv.get("SMTP_PORT", "587");
         this.baseUrl = dotenv.get("APP_BASE_URL", "http://localhost:9090/UniAcad_war");
 
-        // Validate required configuration
+        // Kiểm tra cấu hình bắt buộc
         if (this.username == null || this.username.trim().isEmpty()) {
-            throw new IllegalStateException("SMTP_USERNAME is required in save.env");
+            throw new IllegalStateException("SMTP_USERNAME là bắt buộc trong save.env");
         }
         if (this.password == null || this.password.trim().isEmpty()) {
-            throw new IllegalStateException("SMTP_PASSWORD is required in save.env");
+            throw new IllegalStateException("SMTP_PASSWORD là bắt buộc trong save.env");
         }
 
         int smtpPort;
         try {
             smtpPort = Integer.parseInt(smtpPortStr);
         } catch (NumberFormatException e) {
-            throw new IllegalStateException("Invalid SMTP_PORT in save.env: " + smtpPortStr, e);
+            throw new IllegalStateException("SMTP_PORT không hợp lệ trong save.env: " + smtpPortStr, e);
         }
 
-        // Log loaded configuration (mask password)
-        logger.info("Loaded SMTP configuration: username={}, host={}, port={}, baseUrl={}", username, smtpHost, smtpPort, baseUrl);
+        // Ghi log cấu hình đã tải (che mật khẩu)
+        logger.info("Đã tải cấu hình SMTP: username={}, host={}, port={}, baseUrl={}",
+                username, smtpHost, smtpPort, baseUrl);
 
-        // Configure SMTP
+        // Cấu hình SMTP
         this.smtpProperties = new Properties();
         smtpProperties.put("mail.smtp.auth", "true");
         smtpProperties.put("mail.smtp.host", smtpHost);
         smtpProperties.put("mail.smtp.port", smtpPort);
         smtpProperties.put("mail.smtp.starttls.enable", "true");
 
-        // Resource cache with larger size and manual cleanup
+        // Bộ đệm tài nguyên với kích thước lớn hơn và dọn dẹp thủ công
         this.resourceCache = Caffeine.newBuilder()
                 .maximumSize(500)
                 .expireAfterWrite(Duration.ofHours(2))
                 .build();
 
-        // Optimized ThreadPoolExecutor
-        this.emailQueue = new LinkedBlockingQueue<>(100); // Queue capacity
+        // ThreadPoolExecutor tối ưu
+        this.emailQueue = new LinkedBlockingQueue<>(100); // Dung lượng hàng đợi
         this.executorService = new ThreadPoolExecutor(
                 4, // corePoolSize
                 16, // maximumPoolSize
                 60, TimeUnit.SECONDS, // keepAliveTime
                 this.emailQueue,
-                new ThreadFactoryBuilder().setNameFormat("email-processor-%d").build(), // Thread naming
-                new ThreadPoolExecutor.CallerRunsPolicy() // Rejection policy
+                new ThreadFactoryBuilder().setNameFormat("email-processor-%d").build(), // Đặt tên thread
+                new ThreadPoolExecutor.CallerRunsPolicy() // Chính sách từ chối
         ) {
             @Override
             protected void afterExecute(Runnable r, Throwable t) {
@@ -110,11 +112,11 @@ public class MailService {
         };
         startEmailQueueProcessor();
 
-        // Rate limiting: 200 emails per minute
+        // Giới hạn tốc độ: 200 email mỗi phút
         Bandwidth limit = Bandwidth.classic(200, Refill.greedy(200, Duration.ofMinutes(1)));
         this.rateLimiter = Bucket.builder().addLimit(limit).build();
 
-        // Initialize Thymeleaf template engine
+        // Khởi tạo công cụ mẫu Thymeleaf
         ClassLoaderTemplateResolver templateResolver = new ClassLoaderTemplateResolver();
         templateResolver.setPrefix("templates/");
         templateResolver.setSuffix(".html");
@@ -125,26 +127,26 @@ public class MailService {
     }
 
     /**
-     * Logs ThreadPool metrics for monitoring.
+     * Ghi log số liệu ThreadPool để giám sát.
      */
     private void logThreadPoolMetrics() {
-        logger.debug("ThreadPool metrics: activeThreads={}, queueSize={}, completedTasks={}",
+        logger.debug("Số liệu ThreadPool: activeThreads={}, queueSize={}, completedTasks={}",
                 executorService.getActiveCount(),
                 executorService.getQueue().size(),
                 executorService.getCompletedTaskCount());
     }
 
     /**
-     * Sends personalized HTML emails with attachments specified by resource paths.
+     * Gửi email HTML cá nhân hóa với các tệp đính kèm được chỉ định bởi đường dẫn tài nguyên.
      *
-     * @param templatePath    Path to Thymeleaf template in resources
-     * @param subject         Email subject
-     * @param variables       Map of recipient emails to their specific variables
-     * @param imageMap        Map of image resource paths to their Content- GEN_IDs
-     * @param attachmentPaths List of resource paths for attachments (PDF, Word, Excel)
-     * @param batchSize       Number of emails per batch
-     * @return Map of failed recipients with failure reasons
-     * @throws IOException If template or resource loading fails
+     * @param templatePath Đường dẫn tới mẫu Thymeleaf trong tài nguyên
+     * @param subject      Chủ đề email
+     * @param variables    Map của email người nhận tới các biến cụ thể của họ
+     * @param imageMap     Map của đường dẫn tài nguyên hình ảnh tới Content-ID của chúng
+     * @param attachmentPaths Danh sách đường dẫn tài nguyên của tệp đính kèm (PDF, Word, Excel)
+     * @param batchSize    Số lượng email mỗi lô
+     * @return Map của các người nhận thất bại với lý do thất bại
+     * @throws IOException Nếu tải mẫu hoặc tài nguyên thất bại
      */
     public Map<String, String> sendPersonalizedWithAttachments(
             String templatePath,
@@ -154,15 +156,15 @@ public class MailService {
             List<String> attachmentPaths,
             int batchSize) throws IOException {
 
-        // Load and validate attachments
+        // Tải và kiểm tra tệp đính kèm
         List<Attachment> attachments = loadAttachments(attachmentPaths);
 
-        // Delegate to main sendPersonalized method
+        // Ủy quyền cho phương thức sendPersonalized chính
         return sendPersonalized(templatePath, subject, variables, imageMap, attachments, batchSize);
     }
 
     /**
-     * Sends personalized HTML emails to recipients with embedded images and attachments.
+     * Gửi email HTML cá nhân hóa tới người nhận với hình ảnh nhúng và tệp đính kèm.
      */
     public Map<String, String> sendPersonalized(
             String templatePath,
@@ -173,31 +175,31 @@ public class MailService {
             int batchSize) throws IOException {
 
         if (variables == null || variables.isEmpty()) {
-            throw new IllegalArgumentException("Variables map cannot be null or empty");
+            throw new IllegalArgumentException("Map biến không được rỗng hoặc null");
         }
 
-        // Validate template
+        // Kiểm tra mẫu
         validateTemplate(templatePath);
 
-        // Split recipients into batches
+        // Chia người nhận thành các lô
         batchSize = batchSize <= 0 ? DEFAULT_BATCH_SIZE : batchSize;
         List<List<String>> recipientBatches = partitionRecipients(variables.keySet(), batchSize);
         Map<String, String> failedRecipients = new ConcurrentHashMap<>();
 
-        // Process each batch
+        // Xử lý từng lô
         for (List<String> batch : recipientBatches) {
             List<CompletableFuture<Void>> futures = new ArrayList<>();
             for (String recipient : batch) {
                 CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
                     try {
-                        // Apply rate limiting
+                        // Áp dụng giới hạn tốc độ
                         rateLimiter.asBlocking().consume(1);
 
-                        // Validate recipient email
+                        // Kiểm tra email người nhận
                         InternetAddress address = new InternetAddress(recipient);
                         address.validate();
 
-                        // Create personalized email
+                        // Tạo email cá nhân hóa
                         Session session = Session.getInstance(smtpProperties, new Authenticator() {
                             @Override
                             protected PasswordAuthentication getPasswordAuthentication() {
@@ -210,16 +212,16 @@ public class MailService {
                         message.setRecipient(Message.RecipientType.TO, address);
                         message.setSubject(subject);
 
-                        // Create multipart content
+                        // Tạo nội dung đa phần
                         MimeMultipart multipart = new MimeMultipart("related");
 
-                        // Personalize HTML content with Thymeleaf
+                        // Cá nhân hóa nội dung HTML với Thymeleaf
                         String emailContent = personalizeContent(templatePath, variables.getOrDefault(recipient, Map.of()));
                         MimeBodyPart htmlPart = new MimeBodyPart();
                         htmlPart.setContent(emailContent, "text/html; charset=utf-8");
                         multipart.addBodyPart(htmlPart);
 
-                        // Embed compressed images
+                        // Nhúng hình ảnh đã nén
                         if (imageMap != null) {
                             for (Map.Entry<String, String> image : imageMap.entrySet()) {
                                 MimeBodyPart imagePart = new MimeBodyPart();
@@ -232,7 +234,7 @@ public class MailService {
                             }
                         }
 
-                        // Add attachments
+                        // Thêm tệp đính kèm
                         if (attachments != null) {
                             for (Attachment attachment : attachments) {
                                 validateAttachment(attachment);
@@ -244,18 +246,18 @@ public class MailService {
                             }
                         }
 
-                        // Retry mechanism
+                        // Cơ chế thử lại
                         int maxRetries = 3;
                         for (int attempt = 1; attempt <= maxRetries; attempt++) {
                             try {
                                 message.setContent(multipart);
                                 Transport.send(message);
-                                logger.info("Successfully sent email to {}", recipient);
+                                logger.info("Gửi email thành công tới {}", recipient);
                                 break;
                             } catch (MessagingException e) {
                                 if (attempt == maxRetries) {
-                                    String reason = "Failed after " + maxRetries + " attempts: " + e.getMessage();
-                                    logger.error("Failed to send email to {}: {}", recipient, reason, e);
+                                    String reason = "Thất bại sau " + maxRetries + " lần thử: " + e.getMessage();
+                                    logger.error("Không thể gửi email tới {}: {}", recipient, reason, e);
                                     failedRecipients.put(recipient, reason);
                                 } else {
                                     try {
@@ -268,12 +270,12 @@ public class MailService {
                             }
                         }
                     } catch (AddressException e) {
-                        String reason = "Invalid email address: " + e.getMessage();
-                        logger.warn("Invalid email address: {}", recipient, e);
+                        String reason = "Địa chỉ email không hợp lệ: " + e.getMessage();
+                        logger.warn("Địa chỉ email không hợp lệ: {}", recipient, e);
                         failedRecipients.put(recipient, reason);
                     } catch (MessagingException | IOException e) {
-                        String reason = "Failed to process email: " + e.getMessage();
-                        logger.error("Failed to send email to {}: {}", recipient, reason, e);
+                        String reason = "Không thể xử lý email: " + e.getMessage();
+                        logger.error("Không thể gửi email tới {}: {}", recipient, reason, e);
                         failedRecipients.put(recipient, reason);
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);
@@ -282,7 +284,7 @@ public class MailService {
                 futures.add(future);
             }
 
-            // Wait for batch completion
+            // Chờ hoàn thành lô
             CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
         }
 
@@ -290,7 +292,7 @@ public class MailService {
     }
 
     /**
-     * Loads and validates files (PDF, Word, Excel) from resource paths.
+     * Tải và kiểm tra tệp (PDF, Word, Excel) từ đường dẫn tài nguyên.
      */
     private List<Attachment> loadAttachments(List<String> attachmentPaths) throws IOException {
         if (attachmentPaths == null || attachmentPaths.isEmpty()) {
@@ -300,7 +302,7 @@ public class MailService {
         List<Attachment> attachments = new ArrayList<>();
         for (String path : attachmentPaths) {
             if (path == null || path.trim().isEmpty()) {
-                logger.warn("Skipping empty attachment path");
+                logger.warn("Bỏ qua đường dẫn tệp đính kèm rỗng");
                 continue;
             }
 
@@ -309,57 +311,57 @@ public class MailService {
                 String fileName = path.substring(path.lastIndexOf('/') + 1);
                 String mimeType = getMimeType(path);
                 attachments.add(new Attachment(fileName, fileBytes, mimeType));
-                logger.info("Loaded attachment: {} (type: {})", path, mimeType);
+                logger.info("Đã tải tệp đính kèm: {} (loại: {})", path, mimeType);
             } catch (IOException e) {
-                logger.warn("Skipping attachment due to error: {} - {}", path, e.getMessage());
-                // Continue with other attachments instead of failing
+                logger.warn("Bỏ qua tệp đính kèm do lỗi: {} - {}", path, e.getMessage());
+                // Tiếp tục với các tệp đính kèm khác thay vì thất bại
             }
         }
         if (attachments.isEmpty() && !attachmentPaths.isEmpty()) {
-            logger.warn("No valid attachments loaded from provided paths");
+            logger.warn("Không tải được tệp đính kèm hợp lệ nào từ các đường dẫn cung cấp");
         }
         return attachments;
     }
 
     /**
-     * Validates attachment content based on file type.
+     * Kiểm tra nội dung tệp đính kèm dựa trên loại tệp.
      */
     private void validateAttachmentContent(String path, byte[] content) throws IOException {
         if (content.length > MAX_ATTACHMENT_SIZE_BYTES) {
-            throw new IOException("Attachment too large: " + path + " (" + content.length + " bytes, max " + MAX_ATTACHMENT_SIZE_BYTES + ")");
+            throw new IOException("Tệp đính kèm quá lớn: " + path + " (" + content.length + " bytes, tối đa " + MAX_ATTACHMENT_SIZE_BYTES + ")");
         }
         if (content.length == 0) {
-            throw new IOException("Empty attachment: " + path);
+            throw new IOException("Tệp đính kèm rỗng: " + path);
         }
 
         String lowerCasePath = path.toLowerCase();
         if (lowerCasePath.endsWith(".pdf")) {
             if (content.length < 4 || !new String(content, 0, 4, StandardCharsets.UTF_8).startsWith("%PDF")) {
-                throw new IOException("Invalid PDF file: " + path);
+                throw new IOException("Tệp PDF không hợp lệ: " + path);
             }
         } else if (lowerCasePath.endsWith(".docx") || lowerCasePath.endsWith(".xlsx")) {
-            // Basic check: Verify ZIP header (DOCX and XLSX are ZIP-based)
+            // Kiểm tra cơ bản: Kiểm tra tiêu đề ZIP (DOCX và XLSX dựa trên ZIP)
             if (content.length < 2 || content[0] != 0x50 || content[1] != 0x4B) {
-                throw new IOException("Invalid " + (lowerCasePath.endsWith(".docx") ? "DOCX" : "XLSX") + " file: " + path);
+                throw new IOException("Tệp " + (lowerCasePath.endsWith(".docx") ? "DOCX" : "XLSX") + " không hợp lệ: " + path);
             }
         } else {
-            throw new IOException("Unsupported attachment type: " + path);
+            throw new IOException("Loại tệp đính kèm không được hỗ trợ: " + path);
         }
     }
 
     /**
-     * Validates Thymeleaf template.
+     * Kiểm tra mẫu Thymeleaf.
      */
     private void validateTemplate(String templatePath) throws IOException {
         try {
             templateEngine.process(templatePath, new Context());
         } catch (Exception e) {
-            throw new IOException("Invalid template: " + templatePath + ", " + e.getMessage(), e);
+            throw new IOException("Mẫu không hợp lệ: " + templatePath + ", " + e.getMessage(), e);
         }
     }
 
     /**
-     * Loads and caches resources from classpath.
+     * Tải và lưu trữ tài nguyên từ classpath.
      */
     private byte[] loadResource(String resourcePath) throws IOException {
         byte[] cachedContent = resourceCache.getIfPresent(resourcePath);
@@ -368,10 +370,10 @@ public class MailService {
         }
         try (InputStream stream = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
             if (stream == null) {
-                throw new IOException("Resource not found: " + resourcePath);
+                throw new IOException("Không tìm thấy tài nguyên: " + resourcePath);
             }
             ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-            byte[] data = new byte[8192]; // 8KB buffer
+            byte[] data = new byte[8192]; // Kích thước bộ đệm 8KB
             int nRead;
             while ((nRead = stream.read(data, 0, data.length)) != -1) {
                 buffer.write(data, 0, nRead);
@@ -384,7 +386,7 @@ public class MailService {
     }
 
     /**
-     * Validates resource content (e.g., checks file type).
+     * Kiểm tra nội dung tài nguyên (ví dụ: kiểm tra loại tệp).
      */
     private void validateResource(String resourcePath, byte[] content) throws IOException {
         String lowerCasePath = resourcePath.toLowerCase();
@@ -394,13 +396,13 @@ public class MailService {
             try {
                 ImageIO.read(new ByteArrayInputStream(content));
             } catch (Exception e) {
-                throw new IOException("Invalid image file: " + resourcePath, e);
+                throw new IOException("Tệp hình ảnh không hợp lệ: " + resourcePath, e);
             }
         }
     }
 
     /**
-     * Compresses image if it exceeds size limit.
+     * Nén hình ảnh nếu vượt quá giới hạn kích thước.
      */
     private byte[] compressImageIfNeeded(byte[] imageBytes) throws IOException {
         if (imageBytes.length <= MAX_IMAGE_SIZE_BYTES) {
@@ -408,7 +410,7 @@ public class MailService {
         }
         BufferedImage image = ImageIO.read(new ByteArrayInputStream(imageBytes));
         if (image == null) {
-            throw new IOException("Unable to read image for compression");
+            throw new IOException("Không thể đọc hình ảnh để nén");
         }
         ByteArrayOutputStream compressed = new ByteArrayOutputStream();
         ImageIO.write(image, "jpeg", compressed);
@@ -416,7 +418,7 @@ public class MailService {
     }
 
     /**
-     * Personalizes content using Thymeleaf.
+     * Cá nhân hóa nội dung bằng Thymeleaf.
      */
     private String personalizeContent(String templatePath, Map<String, Object> variables) {
         Context context = new Context();
@@ -426,7 +428,7 @@ public class MailService {
     }
 
     /**
-     * Determines MIME type based on file extension.
+     * Xác định loại MIME dựa trên phần mở rộng tệp.
      */
     private String getMimeType(String filePath) {
         String lowerCasePath = filePath.toLowerCase();
@@ -440,19 +442,19 @@ public class MailService {
     }
 
     /**
-     * Validates attachment content.
+     * Kiểm tra nội dung tệp đính kèm.
      */
     private void validateAttachment(Attachment attachment) throws IOException {
         if (attachment.content == null || attachment.content.length == 0) {
-            throw new IOException("Empty attachment content: " + attachment.fileName);
+            throw new IOException("Nội dung tệp đính kèm rỗng: " + attachment.fileName);
         }
         if (attachment.mimeType == null || attachment.mimeType.isEmpty()) {
-            throw new IOException("Invalid MIME type for attachment: " + attachment.fileName);
+            throw new IOException("Loại MIME không hợp lệ cho tệp đính kèm: " + attachment.fileName);
         }
     }
 
     /**
-     * Partitions recipients into batches.
+     * Chia người nhận thành các lô.
      */
     private List<List<String>> partitionRecipients(Set<String> recipients, int batchSize) {
         List<String> recipientList = new ArrayList<>(recipients);
@@ -464,7 +466,7 @@ public class MailService {
     }
 
     /**
-     * Starts a processor for the email queue.
+     * Bắt đầu một bộ xử lý cho hàng đợi email.
      */
     private void startEmailQueueProcessor() {
         executorService.submit(() -> {
@@ -476,36 +478,36 @@ public class MailService {
                     Thread.currentThread().interrupt();
                     break;
                 } catch (Exception e) {
-                    logger.error("Error processing email queue task", e);
+                    logger.error("Lỗi khi xử lý tác vụ hàng đợi email", e);
                 }
             }
         });
     }
 
     /**
-     * Gracefully shuts down the service.
+     * Tắt dịch vụ một cách nhẹ nhàng.
      */
     public void shutdown() {
-        logger.info("Shutting down MailService ThreadPool...");
+        logger.info("Đang tắt ThreadPool của MailService...");
         executorService.shutdown();
         try {
             if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
-                logger.warn("ThreadPool did not terminate within timeout, forcing shutdown...");
+                logger.warn("ThreadPool không kết thúc trong thời gian chờ, buộc tắt...");
                 executorService.shutdownNow();
                 if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
-                    logger.error("ThreadPool did not terminate after forced shutdown");
+                    logger.error("ThreadPool không kết thúc sau khi buộc tắt");
                 }
             }
         } catch (InterruptedException e) {
-            logger.error("Shutdown interrupted", e);
+            logger.error("Tắt bị gián đoạn", e);
             executorService.shutdownNow();
             Thread.currentThread().interrupt();
         }
-        logger.info("MailService ThreadPool shutdown complete");
+        logger.info("Hoàn tất tắt ThreadPool của MailService");
     }
 
     /**
-     * Represents an email attachment.
+     * Biểu diễn một tệp đính kèm email.
      */
     public static class Attachment {
         private final String fileName;
@@ -520,7 +522,7 @@ public class MailService {
     }
 
     /**
-     * Custom ThreadFactory for naming threads.
+     * ThreadFactory tùy chỉnh để đặt tên thread.
      */
     private static class ThreadFactoryBuilder {
         private String nameFormat;
@@ -545,13 +547,13 @@ public class MailService {
     }
 
     /**
-     * Demo method to demonstrate sending personalized emails with attachments.
+     * Phương thức demo để thể hiện việc gửi email cá nhân hóa với tệp đính kèm.
      */
     public static void main(String[] args) {
         try {
             MailService mailService = new MailService();
 
-            // Personalized variables for recipients
+            // Biến cá nhân hóa cho người nhận
             Map<String, Map<String, Object>> variables = new HashMap<>();
             variables.put("khainhce182286@fpt.edu.vn", Map.of(
                     "name", "Nguyen Hoang Khai",
@@ -566,48 +568,48 @@ public class MailService {
                     "items", List.of("Item 1", "Item 2")
             ));
 
-            // Embedded images
+            // Hình ảnh nhúng
             Map<String, String> imageMap = Map.of(
                     "img/f8d71b6c42f7300871f9e091c6a737e3.jpg", "emailIcon",
                     "img/4d3b20f647cbdeb288013a15cce39fdf.jpg", "textIcon",
                     "img/1cd2ff272e2531b8041264de38db1b5f.png", "xIcon",
                     "img/51a2644c1491853d60a9688ed8f4fa9e.png", "instagramIcon",
                     "img/7575b9251670cd15f3423fd911239179.png", "facebookIcon",
-                    "img/948015252763872ed01b79cbbbb7c68b.png", "bannerIcon"
+                    "img/948015252763872ed01b79cbbbb7c68b.png","bannerIcon"
             );
 
-            // Attachment paths (PDF, Word, Excel)
-            // Note: Ensure these files exist in resources (e.g., src/main/resources/pdf/demo.pdf)
+            // Đường dẫn tệp đính kèm (PDF, Word, Excel)
+            // Lưu ý: Đảm bảo các tệp này tồn tại trong thư mục tài nguyên (ví dụ: src/main/resources/pdf/demo.pdf)
             List<String> attachmentPaths = List.of(
                     "pdf/demo.pdf",
-                    // Add valid .docx and .xlsx files to resources and uncomment below
+                    // Thêm các tệp .docx và .xlsx hợp lệ vào tài nguyên và bỏ ghi chú dưới đây
                     "docx/sample.docx",
                     "xlsx/data.xlsx"
             );
 
-            // Send emails with batch size of 10
+            // Gửi email với kích thước lô là 10
             Map<String, String> failedRecipients = mailService.sendPersonalizedWithAttachments(
                     "verification-email.html",
-                    "Welcome to Our Service",
+                    "Chào mừng đến với Dịch vụ của chúng tôi",
                     variables,
                     imageMap,
                     attachmentPaths,
                     10
             );
 
-            // Report results
+            // Báo cáo kết quả
             if (failedRecipients.isEmpty()) {
-                System.out.println("All emails sent successfully!");
+                System.out.println("Tất cả email đã được gửi thành công!");
             } else {
-                System.out.println("Failed to send emails to:");
+                System.out.println("Không thể gửi email tới: ");
                 failedRecipients.forEach((email, reason) -> System.out.println(email + ": " + reason));
             }
 
-            // Cleanup
+            // Dọn dẹp
             mailService.shutdown();
         } catch (IOException | IllegalStateException e) {
-            logger.error("Demo failed", e);
-            System.out.println("Demo failed: " + e.getMessage());
+            logger.error("Demo thất bại", e);
+            System.out.println("Demo thất bại: " + e.getMessage());
         }
     }
 }
