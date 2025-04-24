@@ -1,5 +1,6 @@
 package util.service.excel;
 
+import jakarta.servlet.ServletContext;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.*;
 import org.slf4j.Logger;
@@ -450,7 +451,7 @@ public class ExcelService {
      */
     public static void main(String[] args) {
         String filename = "data2.xlsx";
-        FileService fileService = new FileService(null);
+        FileService fileService = new FileService((ServletContext) null);
         ExcelService excelService = new ExcelService(fileService);
         List<ColumnConfig> columnConfigs = Arrays.asList(
                 new ColumnConfig(0, "Name", DataType.STRING, true),

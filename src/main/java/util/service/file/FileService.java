@@ -24,11 +24,19 @@ public class FileService {
     public static final String TEMPLATE_FILE_PATH = "templates";
 
     // Constructor for ServletContext
-    public FileService(ServletContext context, String relativePath) {
+    public FileService(ServletContext context) {
         if (context == null) {
             throw new IllegalArgumentException("ServletContext cannot be null");
         }
-        this.filePath = context.getRealPath(relativePath != null ? relativePath : "/WEB-INF/resources") + File.separator;
+        String contextPath = context.getRealPath("/");
+        if (contextPath != null) {
+            // Lấy thư mục webapps bằng cách đi lên một cấp từ UniAcad_war
+            Path webappsPath = Paths.get(contextPath).getParent();
+            this.filePath = webappsPath.resolve("storage").toString() + File.separator;
+        } else {
+            // Fallback to .env or default path if context.getRealPath returns null
+            this.filePath = loadPathFromEnv("save.env");
+        }
         logger.info("File path initialized from ServletContext: {}", filePath);
     }
 
@@ -63,8 +71,8 @@ public class FileService {
             logger.error("Failed to load env file {}: {}", envFilePath, e.getMessage());
         }
         // Fallback to default path
-        String projectDir = System.getProperty("user.dir");
-        return projectDir + File.separator + "src" + File.separator + "main" + File.separator + "resources" + File.separator;
+        String defaultPath = "C:\\Program Files\\Apache Software Foundation\\Tomcat 11.0\\webapps\\storage";
+        return defaultPath + File.separator;
     }
 
     // Getter for filePath
@@ -234,7 +242,7 @@ public class FileService {
     public static void main(String[] args) {
         // Test default constructor (tries save.env, falls back to default)
         System.out.println("Testing default constructor:");
-        FileService defaultService = new FileService(null);
+        FileService defaultService = new FileService((ServletContext) null);
         System.out.println("Default file path: " + defaultService.getFilePath());
 
         // Test with specific .env file
@@ -246,7 +254,5 @@ public class FileService {
         System.out.println("\nTesting with direct file path:");
         FileService directService = new FileService("D:\\UniAcad\\src\\main\\resources");
         System.out.println("Direct file path: " + directService.getFilePath());
-
-        // Note: ServletContext testing requires a web environment (e.g., Tomcat)
     }
 }

@@ -150,7 +150,7 @@ public class MailService {
             throw new IllegalStateException("Invalid SMTP_PORT in save.env: " + smtpPortStr, e);
         }
 
-        this.fileService = context != null ? new FileService(context, "/WEB-INF/resources") : new FileService(fileStoragePath);
+        this.fileService = context != null ? new FileService(context) : new FileService(fileStoragePath);
 
         logger.info("Loaded SMTP configuration: username={}, host={}, port={}, baseUrl={}, fileStoragePath={}",
                 username, smtpHost, smtpPort, baseUrl, fileService.getFilePath());
