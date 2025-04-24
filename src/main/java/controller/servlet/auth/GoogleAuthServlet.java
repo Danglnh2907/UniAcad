@@ -1,4 +1,4 @@
-package controller.auth;
+package controller.servlet.auth;
 
 import com.google.api.client.auth.oauth2.AuthorizationCodeFlow;
 import com.google.api.client.auth.oauth2.AuthorizationCodeRequestUrl;

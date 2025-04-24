@@ -1,4 +1,4 @@
-package util.database;
+package util.service.database;
 
 import java.sql.Connection;
 import java.util.Properties;
