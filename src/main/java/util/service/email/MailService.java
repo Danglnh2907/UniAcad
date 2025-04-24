@@ -5,6 +5,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
 import io.github.bucket4j.Refill;
+import io.github.cdimascio.dotenv.Dotenv;
 import jakarta.activation.DataHandler;
 import jakarta.mail.*;
 import jakarta.mail.internet.*;
@@ -16,7 +17,6 @@ import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 import org.thymeleaf.templatemode.TemplateMode;
 import org.thymeleaf.templateresolver.FileTemplateResolver;
-import io.github.cdimascio.dotenv.Dotenv;
 import util.service.file.FileService;
 
 import javax.imageio.ImageIO;
@@ -31,29 +31,98 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
 /**
- * Advanced MailService using FileService to read files for email sending, without saving files.
+ * A service for sending personalized emails with support for attachments, inline images, and batch processing.
+ * Uses SMTP for email delivery, Thymeleaf for templating, and integrates rate limiting and caching for performance.
+ *
+ * @author [Your Name]
  */
 public class MailService {
+    /**
+     * Logger for logging service activities and errors.
+     */
     private static final Logger logger = LoggerFactory.getLogger(MailService.class);
-    private static final int DEFAULT_BATCH_SIZE = 50;
-    private static final int MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024; // 2MB
-    private static final long MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 
+    /**
+     * Default batch size for sending emails.
+     */
+    private static final int DEFAULT_BATCH_SIZE = 50;
+
+    /**
+     * Maximum size for inline images (2MB).
+     */
+    private static final int MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024;
+
+    /**
+     * Maximum size for attachments (10MB).
+     */
+    private static final long MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
+
+    /**
+     * SMTP username loaded from .env.
+     */
     private final String username;
+
+    /**
+     * SMTP password loaded from .env.
+     */
     private final String password;
+
+    /**
+     * SMTP configuration properties.
+     */
     private final Properties smtpProperties;
+
+    /**
+     * Cache for resources like images.
+     */
     private final Cache<String, byte[]> resourceCache;
+
+    /**
+     * Thread pool for asynchronous email processing.
+     */
     private final ThreadPoolExecutor executorService;
+
+    /**
+     * Queue for email tasks.
+     */
     private final BlockingQueue<Runnable> emailQueue;
+
+    /**
+     * Rate limiter for controlling email sending rate.
+     */
     private final Bucket rateLimiter;
+
+    /**
+     * Thymeleaf engine for rendering email templates.
+     */
     private final TemplateEngine templateEngine;
+
+    /**
+     * Base URL for links in emails.
+     */
     private final String baseUrl;
+
+    /**
+     * Service for accessing files.
+     */
     private final FileService fileService;
 
+    /**
+     * Default constructor that initializes the MailService with configuration from a .env file.
+     *
+     * @throws IllegalStateException if SMTP_USERNAME or SMTP_PASSWORD is missing or invalid in save.env
+     */
     public MailService() {
         this(null);
     }
 
+    /**
+     * Constructor that initializes the MailService with a ServletContext for web applications.
+     * Loads configuration from a .env file and initializes file service with the provided context.
+     *
+     * @param context the ServletContext for accessing web application resources, or null for standalone use
+     * @throws IllegalStateException if SMTP_USERNAME, SMTP_PASSWORD, or SMTP_PORT is missing or invalid in save.env
+     */
     public MailService(ServletContext context) {
         Dotenv dotenv = Dotenv.configure()
                 .filename("save.env")
@@ -123,11 +192,27 @@ public class MailService {
         this.templateEngine.setTemplateResolver(templateResolver);
     }
 
+    /**
+     * Logs thread pool metrics for monitoring.
+     */
     private void logThreadPoolMetrics() {
         logger.debug("ThreadPool metrics: activeThreads={}, queueSize={}, completedTasks={}",
                 executorService.getActiveCount(), executorService.getQueue().size(), executorService.getCompletedTaskCount());
     }
 
+    /**
+     * Sends personalized emails with attachments and inline images to multiple recipients in batches.
+     *
+     * @param templateName    the name of the Thymeleaf template (without .html extension) to use for email content
+     * @param subject         the subject line of the email
+     * @param variables       a map of recipient email addresses to their respective template variables
+     * @param imageMap        a map of image file paths to their Content-IDs for inline images
+     * @param attachmentPaths a list of file paths for attachments (e.g., PDF, DOCX, XLSX)
+     * @param batchSize       the number of emails to process in each batch (default: 50 if <= 0)
+     * @return a map of failed recipient email addresses to their failure reasons
+     * @throws IOException              if the template is invalid, attachments are missing, or resources cannot be loaded
+     * @throws IllegalArgumentException if variables map is null or empty
+     */
     public Map<String, String> sendPersonalizedWithAttachments(
             String templateName, String subject, Map<String, Map<String, Object>> variables,
             Map<String, String> imageMap, List<String> attachmentPaths, int batchSize) throws IOException {
@@ -137,6 +222,19 @@ public class MailService {
         return sendPersonalized(templateName, subject, variables, imageMap, attachments, batchSize);
     }
 
+    /**
+     * Sends personalized emails with inline images and pre-loaded attachments to multiple recipients in batches.
+     *
+     * @param templateName the name of the Thymeleaf template (without .html extension) to use for email content
+     * @param subject      the subject line of the email
+     * @param variables    a map of recipient email addresses to their respective template variables
+     * @param imageMap     a map of image file paths to their Content-IDs for inline images
+     * @param attachments  a list of Attachment objects containing file content and metadata
+     * @param batchSize    the number of emails to process in each batch (default: 50 if <= 0)
+     * @return a map of failed recipient email addresses to their failure reasons
+     * @throws IOException              if the template is invalid or resources cannot be loaded
+     * @throws IllegalArgumentException if variables map is null or empty
+     */
     public Map<String, String> sendPersonalized(
             String templateName, String subject, Map<String, Map<String, Object>> variables,
             Map<String, String> imageMap, List<Attachment> attachments, int batchSize) throws IOException {
@@ -239,6 +337,12 @@ public class MailService {
         return failedRecipients;
     }
 
+    /**
+     * Validates the existence and format of a Thymeleaf template.
+     *
+     * @param templateName the name of the template (without .html extension)
+     * @throws IOException if the template does not exist or is invalid
+     */
     private void validateTemplate(String templateName) throws IOException {
         String templatePath = fileService.getFilePath(templateName + ".html", "template");
         File templateFile = new File(templatePath);
@@ -254,6 +358,13 @@ public class MailService {
         }
     }
 
+    /**
+     * Validates a list of attachment paths, ensuring files exist and are accessible.
+     *
+     * @param attachmentPaths a list of file paths for attachments
+     * @return a list of valid attachment paths
+     * @throws IOException if an attachment file does not exist
+     */
     private List<String> validateAttachments(List<String> attachmentPaths) throws IOException {
         if (attachmentPaths == null || attachmentPaths.isEmpty()) {
             return Collections.emptyList();
@@ -287,6 +398,13 @@ public class MailService {
         return validPaths;
     }
 
+    /**
+     * Loads attachment files into memory as Attachment objects.
+     *
+     * @param attachmentPaths a list of valid attachment file paths
+     * @return a list of Attachment objects containing file content and metadata
+     * @throws IOException if an attachment cannot be loaded
+     */
     private List<Attachment> loadAttachments(List<String> attachmentPaths) throws IOException {
         if (attachmentPaths == null || attachmentPaths.isEmpty()) {
             return Collections.emptyList();
@@ -320,6 +438,13 @@ public class MailService {
         return attachments;
     }
 
+    /**
+     * Loads a resource (e.g., image) from the file system or cache.
+     *
+     * @param resourcePath the path to the resource (e.g., "img/filename.jpg")
+     * @return the resource content as a byte array
+     * @throws IOException if the resource cannot be loaded or is invalid
+     */
     private byte[] loadResource(String resourcePath) throws IOException {
         String fileName = Paths.get(resourcePath).getFileName().toString();
         String fileType = getFileType(resourcePath);
@@ -346,6 +471,13 @@ public class MailService {
         }
     }
 
+    /**
+     * Validates the size and format of a resource (e.g., PDF, image, DOCX).
+     *
+     * @param resourcePath the path to the resource
+     * @param content      the resource content as a byte array
+     * @throws IOException if the resource is too large, empty, or has an invalid format
+     */
     private void validateResource(String resourcePath, byte[] content) throws IOException {
         if (content.length > MAX_ATTACHMENT_SIZE_BYTES) {
             throw new IOException("Resource too large: " + resourcePath);
@@ -376,6 +508,13 @@ public class MailService {
         }
     }
 
+    /**
+     * Compresses an image if it exceeds the maximum size (2MB).
+     *
+     * @param imageBytes the image content as a byte array
+     * @return the compressed image content, or original if within size limit
+     * @throws IOException if the image cannot be read or compressed
+     */
     private byte[] compressImageIfNeeded(byte[] imageBytes) throws IOException {
         if (imageBytes.length <= MAX_IMAGE_SIZE_BYTES) {
             return imageBytes;
@@ -389,6 +528,13 @@ public class MailService {
         return compressed.toByteArray();
     }
 
+    /**
+     * Generates personalized email content using a Thymeleaf template and variables.
+     *
+     * @param templateName the name of the Thymeleaf template
+     * @param variables    a map of variables to populate the template
+     * @return the rendered HTML email content
+     */
     private String personalizeContent(String templateName, Map<String, Object> variables) {
         Context context = new Context();
         context.setVariable("baseUrl", baseUrl);
@@ -396,17 +542,31 @@ public class MailService {
         return templateEngine.process(templateName, context);
     }
 
+    /**
+     * Determines the MIME type of a file based on its extension.
+     *
+     * @param filePath the path to the file
+     * @return the MIME type (e.g., "image/png", "application/pdf")
+     */
     private String getMimeType(String filePath) {
         String lowerCasePath = filePath.toLowerCase();
         if (lowerCasePath.endsWith(".png")) return "image/png";
         if (lowerCasePath.endsWith(".jpg") || lowerCasePath.endsWith(".jpeg")) return "image/jpeg";
         if (lowerCasePath.endsWith(".gif")) return "image/gif";
         if (lowerCasePath.endsWith(".pdf")) return "application/pdf";
-        if (lowerCasePath.endsWith(".docx")) return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        if (lowerCasePath.endsWith(".docx"))
+            return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
         if (lowerCasePath.endsWith(".xlsx")) return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
         return "application/octet-stream";
     }
 
+    /**
+     * Determines the file type (e.g., "img", "pdf") based on its extension.
+     *
+     * @param filePath the path to the file
+     * @return the file type
+     * @throws IllegalArgumentException if the file type is unsupported
+     */
     private String getFileType(String filePath) {
         String lowerCasePath = filePath.toLowerCase();
         if (lowerCasePath.endsWith(".xlsx")) return "xlsx";
@@ -417,6 +577,12 @@ public class MailService {
         throw new IllegalArgumentException("Unsupported file type: " + filePath);
     }
 
+    /**
+     * Validates an attachment's content and MIME type.
+     *
+     * @param attachment the Attachment object to validate
+     * @throws IOException if the attachment is empty or has an invalid MIME type
+     */
     private void validateAttachment(Attachment attachment) throws IOException {
         if (attachment.content == null || attachment.content.length == 0) {
             throw new IOException("Empty attachment content: " + attachment.fileName);
@@ -426,6 +592,13 @@ public class MailService {
         }
     }
 
+    /**
+     * Partitions a set of recipients into batches for processing.
+     *
+     * @param recipients the set of recipient email addresses
+     * @param batchSize  the size of each batch
+     * @return a list of recipient batches
+     */
     private List<List<String>> partitionRecipients(Set<String> recipients, int batchSize) {
         List<String> recipientList = new ArrayList<>(recipients);
         List<List<String>> batches = new ArrayList<>();
@@ -435,6 +608,9 @@ public class MailService {
         return batches;
     }
 
+    /**
+     * Starts a background thread to process the email queue.
+     */
     private void startEmailQueueProcessor() {
         executorService.submit(() -> {
             while (!Thread.currentThread().isInterrupted()) {
@@ -451,6 +627,10 @@ public class MailService {
         });
     }
 
+    /**
+     * Shuts down the MailService, gracefully terminating the thread pool and releasing resources.
+     * Attempts to complete pending tasks within a 5-second timeout before forcing shutdown.
+     */
     public void shutdown() {
         logger.info("Shutting down MailService ThreadPool...");
         executorService.shutdown();
@@ -470,11 +650,21 @@ public class MailService {
         logger.info("MailService ThreadPool shutdown complete");
     }
 
+    /**
+     * Represents an email attachment with its file name, content, and MIME type.
+     */
     public static class Attachment {
         private final String fileName;
         private final byte[] content;
         private final String mimeType;
 
+        /**
+         * Creates an Attachment with the specified file name, content, and MIME type.
+         *
+         * @param fileName the name of the attachment file
+         * @param content  the attachment content as a byte array
+         * @param mimeType the MIME type of the attachment (e.g., "application/pdf")
+         */
         public Attachment(String fileName, byte[] content, String mimeType) {
             this.fileName = fileName;
             this.content = content;
@@ -482,14 +672,28 @@ public class MailService {
         }
     }
 
+    /**
+     * Utility class for creating named threads in the thread pool.
+     */
     private static class ThreadFactoryBuilder {
         private String nameFormat;
 
+        /**
+         * Sets the name format for threads.
+         *
+         * @param nameFormat the format string for thread names (e.g., "email-processor-%d")
+         * @return this builder instance
+         */
         public ThreadFactoryBuilder setNameFormat(String nameFormat) {
             this.nameFormat = nameFormat;
             return this;
         }
 
+        /**
+         * Builds a ThreadFactory that creates named threads.
+         *
+         * @return a ThreadFactory instance
+         */
         public ThreadFactory build() {
             return new ThreadFactory() {
                 private final AtomicInteger threadNumber = new AtomicInteger(1);
@@ -505,13 +709,13 @@ public class MailService {
     }
 
     /**
-     * Builds a map of image file paths to their corresponding Content-IDs.
-     * Checks if each image file exists, throwing an IOException if not.
+     * Builds a map of image file paths to their corresponding Content-IDs, validating each image file.
      *
-     * @param imagePaths List of relative image paths (e.g., "img/filename.jpg")
-     * @param imageContentIds List of Content-IDs (e.g., "emailIcon")
-     * @return Map of full file paths to Content-IDs
-     * @throws IOException If an image file does not exist or paths/IDs lists mismatch
+     * @param imagePaths      a list of relative image paths (e.g., "img/filename.jpg")
+     * @param imageContentIds a list of Content-IDs (e.g., "emailIcon")
+     * @return a map of full file paths to Content-IDs
+     * @throws IOException              if an image file does not exist
+     * @throws IllegalArgumentException if imagePaths and imageContentIds lists have different sizes
      */
     private Map<String, String> buildImageMap(List<String> imagePaths, List<String> imageContentIds) throws IOException {
         if (imagePaths.size() != imageContentIds.size()) {
@@ -538,6 +742,11 @@ public class MailService {
         return imageMap;
     }
 
+    /**
+     * Demo main method for testing the MailService functionality.
+     *
+     * @param args command-line arguments (not used)
+     */
     public static void main(String[] args) {
         try {
             MailService mailService = new MailService();
