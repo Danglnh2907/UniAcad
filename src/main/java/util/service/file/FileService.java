@@ -1,7 +1,8 @@
 package util.service.file;
 
-import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.LogManager;
+import io.github.cdimascio.dotenv.Dotenv;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import jakarta.servlet.ServletContext;
 import java.io.File;
@@ -13,27 +14,16 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 public class FileService {
-    private static final Logger logger = LogManager.getLogger(FileService.class);
+    private static final Logger logger = LoggerFactory.getLogger(FileService.class);
     private final String filePath;
-    private static final long MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB, đồng bộ với MailService
-    static final String EXCEL_FILE_PATH = "xlsx";
-    static final String WORD_FILE_PATH = "docx";
-    static final String PDF_FILE_PATH = "pdf";
-    static final String IMAGE_FILE_PATH = "img";
-    static final String TEMPLATE_FILE_PATH = "templates";
+    private static final long MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+    public static final String EXCEL_FILE_PATH = "xlsx";
+    public static final String WORD_FILE_PATH = "docx";
+    public static final String PDF_FILE_PATH = "pdf";
+    public static final String IMAGE_FILE_PATH = "img";
+    public static final String TEMPLATE_FILE_PATH = "templates";
 
-    // Constructor chính
-    public FileService(String filePathInput) {
-        if (filePathInput == null || filePathInput.isEmpty()) {
-            String projectDir = System.getProperty("user.dir");
-            this.filePath = projectDir + File.separator + "src" + File.separator + "main" + File.separator + "resources" + File.separator;
-        } else {
-            this.filePath = filePathInput.replaceAll("[/\\\\]+$", "") + File.separator;
-        }
-        logger.info("File path initialized: {}", filePath);
-    }
-
-    // Constructor cho Tomcat
+    // Constructor for ServletContext
     public FileService(ServletContext context, String relativePath) {
         if (context == null) {
             throw new IllegalArgumentException("ServletContext cannot be null");
@@ -42,37 +32,72 @@ public class FileService {
         logger.info("File path initialized from ServletContext: {}", filePath);
     }
 
-    // Getter cho filePath
+    // Consolidated constructor for String input (file path or env file)
+    public FileService(String pathInput) {
+        if (pathInput == null || pathInput.trim().isEmpty()) {
+            // Try loading from default save.env or fall back to default path
+            this.filePath = loadPathFromEnv("save.env");
+        } else if (pathInput.toLowerCase().endsWith(".env")) {
+            // Treat as an env file to load FILE_STORAGE_PATH
+            this.filePath = loadPathFromEnv(pathInput);
+        } else {
+            // Treat as a direct file path
+            this.filePath = pathInput.replaceAll("[/\\\\]+$", "") + File.separator;
+        }
+        logger.info("File path initialized: {}", filePath);
+    }
+
+    // Load file path from an env file
+    private String loadPathFromEnv(String envFilePath) {
+        try {
+            Dotenv dotenv = Dotenv.configure()
+                    .filename(envFilePath)
+                    .ignoreIfMissing()
+                    .load();
+            String path = dotenv.get("FILE_STORAGE_PATH");
+            if (path != null && !path.trim().isEmpty()) {
+                return path.replaceAll("[/\\\\]+$", "") + File.separator;
+            }
+            logger.warn("FILE_STORAGE_PATH not found in {}, falling back to default", envFilePath);
+        } catch (Exception e) {
+            logger.error("Failed to load env file {}: {}", envFilePath, e.getMessage());
+        }
+        // Fallback to default path
+        String projectDir = System.getProperty("user.dir");
+        return projectDir + File.separator + "src" + File.separator + "main" + File.separator + "resources" + File.separator;
+    }
+
+    // Getter for filePath
     public String getFilePath() {
         return filePath;
     }
 
-    // Lưu tệp DOCX
+    // Save DOCX file
     public boolean saveFileDocx(String fileName, byte[] fileContent) {
         return saveFile(fileName, fileContent, WORD_FILE_PATH);
     }
 
-    // Lưu tệp XLSX
+    // Save XLSX file
     public boolean saveFileXlsx(String fileName, byte[] fileContent) {
         return saveFile(fileName, fileContent, EXCEL_FILE_PATH);
     }
 
-    // Lưu tệp PDF
+    // Save PDF file
     public boolean saveFilePdf(String fileName, byte[] fileContent) {
         return saveFile(fileName, fileContent, PDF_FILE_PATH);
     }
 
-    // Lưu tệp ảnh (bao gồm GIF)
+    // Save image file (including GIF)
     public boolean saveFileImg(String fileName, byte[] fileContent) {
         return saveFile(fileName, fileContent, IMAGE_FILE_PATH);
     }
 
-    // Lưu tệp template
+    // Save template file
     public boolean saveFileTemplate(String fileName, byte[] fileContent) {
         return saveFile(fileName, fileContent, TEMPLATE_FILE_PATH);
     }
 
-    // Phương thức lưu tệp chung
+    // Common file saving method
     private boolean saveFile(String fileName, byte[] fileContent, String subDir) {
         if (fileName == null || fileName.trim().isEmpty()) {
             logger.error("File name is null or empty");
@@ -91,7 +116,7 @@ public class FileService {
             return false;
         }
 
-        // Kiểm tra định dạng tệp
+        // Validate file content
         try {
             validateFileContent(fileName, fileContent, subDir);
         } catch (IOException e) {
@@ -111,7 +136,7 @@ public class FileService {
         }
     }
 
-    // Kiểm tra định dạng tệp
+    // Validate file content
     private void validateFileContent(String fileName, byte[] content, String subDir) throws IOException {
         String lowerCaseName = fileName.toLowerCase();
         if (subDir.equals(PDF_FILE_PATH)) {
@@ -142,7 +167,7 @@ public class FileService {
         }
     }
 
-    // Lấy đường dẫn tệp
+    // Get file path for a specific file
     public String getFilePath(String fileName, String fileType) {
         if (fileName == null || fileName.trim().isEmpty()) {
             logger.error("File name is null or empty");
@@ -176,7 +201,7 @@ public class FileService {
         return Paths.get(filePath, subDir, fileName).toString();
     }
 
-    // Lấy InputStream từ tệp
+    // Get InputStream for a file
     public InputStream getFileInputStream(String fileName, String fileType) throws IOException {
         String filePath = getFilePath(fileName, fileType);
         File file = new File(filePath);
@@ -188,7 +213,7 @@ public class FileService {
         return Files.newInputStream(file.toPath());
     }
 
-    // Xóa tệp
+    // Delete a file
     public boolean deleteFile(String fileName, String fileType) {
         String filePath = getFilePath(fileName, fileType);
         File file = new File(filePath);
@@ -204,5 +229,24 @@ public class FileService {
             logger.error("Error deleting file: {}", fileName, e);
             return false;
         }
+    }
+
+    public static void main(String[] args) {
+        // Test default constructor (tries save.env, falls back to default)
+        System.out.println("Testing default constructor:");
+        FileService defaultService = new FileService(null);
+        System.out.println("Default file path: " + defaultService.getFilePath());
+
+        // Test with specific .env file
+        System.out.println("\nTesting with .env file:");
+        FileService envService = new FileService("path/to/save.env");
+        System.out.println("Env file path: " + envService.getFilePath());
+
+        // Test with direct file path
+        System.out.println("\nTesting with direct file path:");
+        FileService directService = new FileService("D:\\UniAcad\\src\\main\\resources");
+        System.out.println("Direct file path: " + directService.getFilePath());
+
+        // Note: ServletContext testing requires a web environment (e.g., Tomcat)
     }
 }
