@@ -526,10 +526,12 @@ public class MailService {
             File file = new File(filePath);
             try {
                 if (!file.exists()) {
+                    LoggerFactory.getLogger(MailService.class).error("Image not found: {}", filePath);
                     throw new IOException("Image not found: " + filePath);
                 }
                 imageMap.put(filePath, imageContentIds.get(i));
             } catch (IOException e) {
+                LoggerFactory.getLogger(MailService.class).error("Error validating image: {}", filePath, e);
                 throw new RuntimeException(e);
             }
         });
