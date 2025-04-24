@@ -113,7 +113,7 @@ public class ExcelService {
      * @throws IOException if an image cannot be saved
      */
     private Map<String, Object> processRow(Row row, List<ColumnConfig> configs, List<XSSFPictureData> pictures, List<ProcessingError> errors) throws IOException {
-        Map<String, Object> rowData = new HashMap<>();
+        Map<String, Object> rowData = new LinkedHashMap<>();
         boolean hasValidData = false;
 
         for (ColumnConfig config : configs) {
@@ -449,50 +449,22 @@ public class ExcelService {
      * @param args command-line arguments: [fileName, uploadDir]
      */
     public static void main(String[] args) {
-        String fileName = args.length > 0 ? args[0] : "data2.xlsx"; // Default file name
-
+        String filename = "data2.xlsx";
+        FileService fileService = new FileService(null);
+        ExcelService excelService = new ExcelService(fileService);
+        List<ColumnConfig> columnConfigs = Arrays.asList(
+                new ColumnConfig(0, "Name", DataType.STRING, true),
+                new ColumnConfig(1, "Email", DataType.EMAIL, true),
+                new ColumnConfig(2, "Address", DataType.STRING, false),
+                new ColumnConfig(3, "Salary", DataType.INTEGER, false),
+                new ColumnConfig(4, "Description", DataType.STRING, false)
+        );
         try {
-            // Initialize FileService with specified upload directory
-            FileService fileService = new FileService(null);
-            ExcelService excelService = new ExcelService(fileService);
-
-            // Define column configurations
-            List<ColumnConfig> configs = List.of(
-                    new ColumnConfig(0, "fullname", DataType.STRING, true),
-                    new ColumnConfig(1, "email", DataType.EMAIL, true),
-                    new ColumnConfig(2, "address", DataType.STRING, false),
-                    new ColumnConfig(3, "salary", DataType.INTEGER, false)
-            );
-
-            // Read Excel file
-            logger.info("Thread {}: Reading Excel file: {}", Thread.currentThread().getName(), fileName);
-            try {
-                ExcelProcessingResult result = excelService.processExcelFile(fileName, configs);
-
-                // Output processed data to console
-                System.out.println("Processed Data:");
-                for (Map<String, Object> row : result.getData()) {
-                    System.out.println(row.get("address"));
-                }
-
-                // Output errors to console
-                System.out.println("\nProcessing Errors:");
-                if (result.getErrors().isEmpty()) {
-                    System.out.println("No processing errors.");
-                } else {
-                    for (ProcessingError error : result.getErrors()) {
-                        System.out.printf("Row %d, Column %d: %s (Type: %s)%n",
-                                error.getRowIndex(), error.getColumnIndex(), error.getErrorMessage(), error.getErrorType());
-                    }
-                }
-            } catch (IOException e) {
-                logger.error("Thread {}: Failed to process file '{}': {}",
-                        Thread.currentThread().getName(), fileName, e.getMessage(), e);
-                System.out.println("Failed to process file: " + e.getMessage());
-            }
-        } catch (Exception e) {
-            logger.error("Thread {}: An error occurred: {}", Thread.currentThread().getName(), e.getMessage(), e);
-            System.out.println("An error occurred: " + e.getMessage());
+            ExcelProcessingResult result = excelService.processExcelFile(filename, columnConfigs);
+            System.out.println("Processed data: " + result.getData());
+            System.out.println("Processing errors: " + result.getErrors());
+        } catch (IOException e) {
+            logger.error("Error processing Excel file: {}", e.getMessage());
         }
     }
 }
