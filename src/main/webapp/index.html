@@ -1,5 +1,5 @@
-<%@ page contentType="text/html;charset=UTF-8" language="java" %>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
     <title>Login</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -28,12 +28,8 @@
 <body class="bg-gradient-to-br from-blue-100 to-white min-h-screen flex items-center justify-center">
 <div class="max-w-md w-full mx-4 p-8 bg-white rounded-xl shadow-lg">
     <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">Login to Your Account</h2>
-    <% if (request.getAttribute("error") != null) { %>
-    <div id="error-toast" class="toast bg-red-500 text-white p-4 rounded-lg mb-4">
-        <%= request.getAttribute("error") %>
-    </div>
-    <% } %>
-    <form id="login-form" action="login" method="post" class="space-y-4">
+    <div class="hidden toast bg-red-500 text-white p-4 rounded-lg mb-4" id="error-toast"></div>
+    <form class="space-y-4" id="login-form">
         <div>
             <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
             <input type="email" id="email" name="email" required
@@ -59,14 +55,16 @@
     </form>
     <div class="mt-4 text-center">
         <p class="text-gray-600 mb-2">Or login with:</p>
-        <a href="google-auth" class="inline-flex items-center bg-secondary text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-500 transition duration-300">
+        <a class="inline-flex items-center bg-secondary text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-500 transition duration-300"
+           href="http://localhost:9090/UniAcad_war/UniAcad/google-auth">
             <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.507,9.518-11.426H12.545z"/>
             </svg>
             Google
         </a>
     </div>
-    <p class="mt-4 text-center text-gray-600">Don't have an account? <a href="register.jsp" class="text-primary hover:underline">Register</a></p>
+    <p class="mt-4 text-center text-gray-600">Don't have an account? <a
+            class="text-primary hover:underline" href="http://localhost:9090/UniAcad_war/register.html">Register</a></p>
 </div>
 <script>
     function validateEmail() {
@@ -94,36 +92,88 @@
         }
     }
 
-    document.getElementById('login-form').addEventListener('submit', function (e) {
+    document.getElementById('login-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
         if (!validateEmail() || !validatePassword()) {
-            e.preventDefault();
             showToast('Please fix the errors in the form.', 'error');
             return;
         }
+
         const btn = document.getElementById('submit-btn');
         const btnText = document.getElementById('btn-text');
         const spinner = document.getElementById('spinner');
+        const errorToast = document.getElementById('error-toast');
+
         btn.disabled = true;
         btnText.textContent = 'Logging in...';
         spinner.classList.remove('hidden');
+        errorToast.classList.add('hidden');
+
+        const formData = new FormData();
+        formData.append('email', document.getElementById('email').value);
+        formData.append('password', document.getElementById('password').value);
+
+        try {
+            const response = await fetch('/UniAcad/login', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                showToast(result.errorMessage || 'Login failed. Please try again.', 'error');
+                btn.disabled = false;
+                btnText.textContent = 'Login';
+                spinner.classList.add('hidden');
+                return;
+            }
+
+            showToast('Login successful!', 'success');
+            setTimeout(() => {
+                window.location.href = result.redirectUrl || 'http://localhost:9090/UniAcad_war/dashboard.html';
+            }, 1000);
+
+        } catch (error) {
+            showToast('An error occurred: ' + error.message, 'error');
+            btn.disabled = false;
+            btnText.textContent = 'Login';
+            spinner.classList.add('hidden');
+        }
+    });
+
+    // Check for Google Auth callback
+    window.addEventListener('load', async () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('code')) {
+            try {
+                const response = await fetch('http://localhost:9090/UniAcad_war/google-auth' + window.location.search);
+                const result = await response.json();
+
+                if (!response.ok) {
+                    showToast(result.errorMessage || 'Google authentication failed.', 'error');
+                    return;
+                }
+
+                showToast('Google authentication successful!', 'success');
+                setTimeout(() => {
+                    window.location.href = result.redirectUrl || 'http://localhost:9090/UniAcad_war/dashboard.html';
+                }, 1000);
+            } catch (error) {
+                showToast('Google authentication error: ' + error.message, 'error');
+            }
+        }
     });
 
     function showToast(message, type) {
-        const toast = document.createElement('div');
-        toast.className = `toast fixed bottom-4 right-4 p-4 rounded-lg text-white ${type == 'error' ? 'bg-red-500' : 'bg-green-500'}`;
+        const toast = document.getElementById('error-toast');
         toast.textContent = message;
-        document.body.appendChild(toast);
-        setTimeout(() => toast.classList.add('show'), 100);
+        toast.className = `toast bg-${type === 'error' ? 'red' : 'green'}-500 text-white p-4 rounded-lg mb-4`;
+        toast.classList.remove('hidden');
+        toast.classList.add('show');
         setTimeout(() => {
             toast.classList.remove('show');
-            setTimeout(() => toast.remove(), 500);
-        }, 3000);
-    }
-
-    if (document.getElementById('error-toast')) {
-        document.getElementById('error-toast').classList.add('show');
-        setTimeout(() => {
-            document.getElementById('error-toast').classList.remove('show');
+            setTimeout(() => toast.classList.add('hidden'), 500);
         }, 3000);
     }
 </script>

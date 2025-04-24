@@ -17,30 +17,35 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintWriter;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Properties;
-import java.util.logging.Logger;
+
+import com.google.gson.Gson;
 
 /**
- * Simplified GoogleAuthServlet for Google OAuth2 login to retrieve user email and full name.
+ * GoogleAuthServlet for Google OAuth2 login to retrieve user email and full name.
  * Redirects to Google for authentication and stores email and full name in session.
+ * Returns JSON responses for compatibility with login.html.
  */
 @WebServlet("/google-auth")
 public class GoogleAuthServlet extends HttpServlet {
-    private static final Logger LOGGER = Logger.getLogger(GoogleAuthServlet.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(GoogleAuthServlet.class);
     private static final HttpTransport HTTP_TRANSPORT = new NetHttpTransport();
     private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
     private static final String USERINFO_ENDPOINT = "https://www.googleapis.com/oauth2/v3/userinfo";
-
     private AuthorizationCodeFlow flow;
+    private Gson gson;
 
     @Override
     public void init() throws ServletException {
-        String contextPath = String.valueOf(getServletContext().getRealPath("/"));
-        Logger.getLogger("HelloServlet").info("Context Path: " + contextPath);
         try {
             Properties oauthProps = new Properties();
             try (InputStream input = getClass().getClassLoader().getResourceAsStream("oauth.properties")) {
@@ -64,6 +69,7 @@ public class GoogleAuthServlet extends HttpServlet {
                     Arrays.asList(scope.split(" ")))
                     .setDataStoreFactory(new MemoryDataStoreFactory())
                     .build();
+            gson = new Gson();
         } catch (IOException e) {
             throw new ServletException("Failed to initialize Google OAuth flow", e);
         }
@@ -72,20 +78,30 @@ public class GoogleAuthServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+        PrintWriter out = response.getWriter();
+
         String code = request.getParameter("code");
         if (code == null) {
             // Step 1: Redirect to Google OAuth
-            AuthorizationCodeRequestUrl authUrl = flow.newAuthorizationUrl()
-                    .setRedirectUri(getRedirectUri());
-            LOGGER.info("Redirecting to: " + authUrl.build());
-            response.sendRedirect(authUrl.build());
+            try {
+                AuthorizationCodeRequestUrl authUrl = flow.newAuthorizationUrl()
+                        .setRedirectUri(getRedirectUri(request));
+                logger.info("Redirecting to Google OAuth: {}", authUrl.build());
+                response.sendRedirect(authUrl.build());
+            } catch (Exception e) {
+                logger.error("Error redirecting to Google OAuth: {}", e.getMessage(), e);
+                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                out.println(gson.toJson(createErrorResponse("Failed to initiate Google authentication")));
+            }
             return;
         }
 
         // Step 2: Process callback from Google
         try {
             TokenResponse tokenResponse = flow.newTokenRequest(code)
-                    .setRedirectUri(getRedirectUri())
+                    .setRedirectUri(getRedirectUri(request))
                     .execute();
 
             String accessToken = tokenResponse.getAccessToken();
@@ -96,9 +112,7 @@ public class GoogleAuthServlet extends HttpServlet {
             com.google.api.client.http.HttpResponse userInfoResponse = userInfoRequest.execute();
 
             String userInfoJson = userInfoResponse.parseAsString();
-            com.google.gson.Gson gson = new com.google.gson.Gson();
             com.google.gson.JsonObject userInfo = gson.fromJson(userInfoJson, com.google.gson.JsonObject.class);
-            Logger.getLogger("GoogleAuthServlet").info("User info: " + userInfo);
             String email = userInfo.get("email").getAsString();
             String fullName = userInfo.get("name") != null ? userInfo.get("name").getAsString() : "Unknown";
 
@@ -106,22 +120,43 @@ public class GoogleAuthServlet extends HttpServlet {
             HttpSession session = request.getSession();
             session.setAttribute("email", email);
             session.setAttribute("full_name", fullName);
-            LOGGER.info("User logged in with email: " + email + ", full name: " + fullName);
+            logger.info("User logged in with email: {}, full name: {}", email, fullName);
 
-            response.sendRedirect("account.jsp");
+            // Redirect to dashboard
+            Map<String, String> responseData = new LinkedHashMap<>();
+            responseData.put("message", "Google authentication successful");
+            responseData.put("redirectUrl", request.getContextPath() + "/dashboard.html");
+            out.println(gson.toJson(responseData));
+
         } catch (Exception e) {
-            LOGGER.severe("Google OAuth error: " + e.getMessage());
-            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Google authentication failed");
+            logger.error("Google OAuth error: {}", e.getMessage(), e);
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.println(gson.toJson(createErrorResponse("Google authentication failed: " + e.getMessage())));
+        } finally {
+            out.flush();
         }
     }
 
-    private String getRedirectUri() {
+    private String getRedirectUri(HttpServletRequest request) {
         Properties oauthProps = new Properties();
         try (InputStream input = getClass().getClassLoader().getResourceAsStream("oauth.properties")) {
+            if (input == null) {
+                throw new IOException("Unable to find oauth.properties");
+            }
             oauthProps.load(input);
         } catch (IOException e) {
-            LOGGER.severe("Failed to load oauth.properties: " + e.getMessage());
+            logger.error("Failed to load oauth.properties: {}", e.getMessage(), e);
         }
-        return oauthProps.getProperty("oauth.google_redirect_uri");
+        String redirectUri = oauthProps.getProperty("oauth.google_redirect_uri");
+        // Ensure redirect URI matches the request context
+        return redirectUri != null ? redirectUri : request.getScheme() + "://" +
+                request.getServerName() + ":" + request.getServerPort() +
+                request.getContextPath() + "/google-auth";
+    }
+
+    private Map<String, String> createErrorResponse(String message) {
+        Map<String, String> error = new LinkedHashMap<>();
+        error.put("errorMessage", message);
+        return error;
     }
 }
