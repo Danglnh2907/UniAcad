@@ -26,7 +26,8 @@ public class NormalizationService {
 
     public String normaliizationEmail(String input)
     {
-        return input.trim();
+        input = input.trim().toLowerCase();
+        return input;
     }
 
     public static void main (String[] args)
