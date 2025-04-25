@@ -1,6 +1,8 @@
 package util.service.excel;
 
+import dao.StudentDAO;
 import jakarta.servlet.ServletContext;
+import model.Student;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.*;
 import org.slf4j.Logger;
@@ -49,26 +51,40 @@ public class ExcelService {
     }
 
     /**
-     * Processes an Excel file and extracts data based on the provided column configurations.
-     * Supports multiple data types (STRING, INTEGER, DOUBLE, DATE, IMAGE) and saves images using FileService.
+     * Processes an Excel file and extracts data based on the provided column configurations, starting from a specified row.
+     * Supports multiple data types (STRING, INTEGER, DOUBLE, DATE, IMAGE, BOOLEAN, EMAIL) and saves images using FileService.
      *
-     * @param fileName      the input stream of the Excel file
+     * @param fileName      the name of the Excel file
      * @param columnConfigs the list of column configurations, or null to infer from header row
+     * @param startRow      the 1-based row index to start reading data (e.g., 3 to skip title and header); defaults to 2 if <= 0
      * @return an ExcelProcessingResult containing the processed data and any errors
      * @throws IOException              if the Excel file cannot be read
-     * @throws IllegalArgumentException if fileContent is null or columnConfigs are invalid
+     * @throws IllegalArgumentException if fileName is null/empty, columnConfigs are invalid, or startRow is invalid
      */
-    public ExcelProcessingResult processExcelFile(String fileName, List<ColumnConfig> columnConfigs) throws IOException {
-        InputStream fileContent = new FileInputStream(fileService.getFilePath(fileName, "xlsx"));
+    public ExcelProcessingResult processExcelFile(String fileName, List<ColumnConfig> columnConfigs, int startRow) throws IOException {
+        if (fileName == null || fileName.trim().isEmpty()) {
+            throw new IllegalArgumentException("File name cannot be null or empty");
+        }
         validateColumnConfigs(columnConfigs);
 
+        InputStream fileContent = new FileInputStream(fileService.getFilePath(fileName, "xlsx"));
         XSSFWorkbook workbook = new XSSFWorkbook(fileContent);
         Sheet sheet = workbook.getSheetAt(0);
         List<XSSFPictureData> pictures = workbook.getAllPictures();
-        logger.info("Thread {}: Processing sheet '{}': {} rows, {} pictures found",
-                Thread.currentThread().getName(), sheet.getSheetName(), sheet.getLastRowNum(), pictures.size());
 
-        ExcelProcessingResult result = processSheet(sheet, pictures, columnConfigs);
+        // Validate startRow
+        startRow = startRow <= 0 ? 2 : startRow; // Default to row 2 (skip header)
+        if (startRow > sheet.getLastRowNum() + 1) {
+            workbook.close();
+            throw new IllegalArgumentException("Start row " + startRow + " exceeds sheet row count: " + (sheet.getLastRowNum() + 1));
+        }
+
+        // Assume header is the row before startRow if columnConfigs is null
+        int headerRowIndex = columnConfigs == null ? startRow - 1 : 0;
+        logger.info("Thread {}: Processing sheet '{}': {} rows, {} pictures, startRow={}, headerRowIndex={}",
+                Thread.currentThread().getName(), sheet.getSheetName(), sheet.getLastRowNum(), pictures.size(), startRow, headerRowIndex);
+
+        ExcelProcessingResult result = processSheet(sheet, pictures, columnConfigs, startRow, headerRowIndex);
 
         workbook.close();
         logger.info("Thread {}: Processed {} rows successfully with {} errors",
@@ -77,23 +93,30 @@ public class ExcelService {
     }
 
     /**
-     * Processes a specific sheet in the Excel file.
+     * Processes a specific sheet in the Excel file, starting from the specified row.
      *
-     * @param sheet         the sheet to process
-     * @param pictures      the list of pictures in the Excel file
-     * @param columnConfigs the column configurations to apply
+     * @param sheet          the sheet to process
+     * @param pictures       the list of pictures in the Excel file
+     * @param columnConfigs  the column configurations to apply
+     * @param startRow       the 1-based row index to start reading data
+     * @param headerRowIndex the 1-based row index for the header (used if columnConfigs is null)
      * @return an ExcelProcessingResult containing the processed data and errors
+     * @throws IOException if an image cannot be saved
      */
-    private ExcelProcessingResult processSheet(Sheet sheet, List<XSSFPictureData> pictures, List<ColumnConfig> columnConfigs) throws IOException {
+    private ExcelProcessingResult processSheet(Sheet sheet, List<XSSFPictureData> pictures, List<ColumnConfig> columnConfigs, int startRow, int headerRowIndex) throws IOException {
         List<ColumnConfig> effectiveConfigs = columnConfigs != null && !columnConfigs.isEmpty()
                 ? columnConfigs
-                : inferColumnConfigs(sheet.getRow(0));
+                : inferColumnConfigs(sheet.getRow(headerRowIndex - 1)); // 0-based index
 
         List<Map<String, Object>> data = new ArrayList<>();
         List<ProcessingError> errors = new ArrayList<>();
 
         for (Row row : sheet) {
-            if (row.getRowNum() == 0) continue; // Skip header row
+            if (row.getRowNum() < startRow - 1) continue; // Skip rows before startRow (0-based)
+            if (isRowEmpty(row)) {
+                logger.debug("Thread {}: Skipping empty row {}", Thread.currentThread().getName(), row.getRowNum() + 1);
+                continue;
+            }
             Map<String, Object> rowData = processRow(row, effectiveConfigs, pictures, errors);
             if (rowData != null) {
                 data.add(rowData);
@@ -101,6 +124,31 @@ public class ExcelService {
         }
 
         return new ExcelProcessingResult(data, errors);
+    }
+
+    /**
+     * Checks if a row is empty (all cells are null, blank, or contain only whitespace).
+     *
+     * @param row the row to check
+     * @return true if the row is empty, false otherwise
+     */
+    private boolean isRowEmpty(Row row) {
+        if (row == null) return true;
+        for (Cell cell : row) {
+            if (cell == null || cell.getCellType() == CellType.BLANK) {
+                continue;
+            }
+            if (cell.getCellType() == CellType.STRING) {
+                String value = cell.getStringCellValue();
+                if (value != null && !value.trim().isEmpty()) {
+                    return false;
+                }
+            } else {
+                // Non-string cell (e.g., NUMERIC, BOOLEAN, DATE) with data
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -445,27 +493,54 @@ public class ExcelService {
 
     /**
      * Demo main method for testing ExcelService functionality.
-     * Reads a sample Excel file with specified file name and directory.
+     * Reads a sample Excel file with specified file name, starting from a given row.
      *
-     * @param args command-line arguments: [fileName, uploadDir]
+     * @param args command-line arguments: [fileName]
      */
     public static void main(String[] args) {
-        String filename = "data2.xlsx";
-        FileService fileService = new FileService((ServletContext) null);
+        String filename = "studentList.xlsx";
+        FileService fileService = new FileService("");
         ExcelService excelService = new ExcelService(fileService);
         List<ColumnConfig> columnConfigs = Arrays.asList(
-                new ColumnConfig(0, "Name", DataType.STRING, true),
-                new ColumnConfig(1, "Email", DataType.EMAIL, true),
-                new ColumnConfig(2, "Address", DataType.STRING, false),
-                new ColumnConfig(3, "Salary", DataType.INTEGER, false),
-                new ColumnConfig(4, "Description", DataType.STRING, false)
+                new ColumnConfig(0, "StudentID", DataType.STRING, true),
+                new ColumnConfig(1, "StudentEmail", DataType.EMAIL, true),
+                new ColumnConfig(2, "LastName", DataType.STRING, true),
+                new ColumnConfig(3, "MiddleName", DataType.STRING, true),
+                new ColumnConfig(4, "FirstName", DataType.STRING, true),
+                new ColumnConfig(5, "StudentDoB", DataType.DATE, true),
+                new ColumnConfig(6, "StudentGender", DataType.INTEGER, true),
+                new ColumnConfig(7, "StudentSSN", DataType.STRING, true),
+                new ColumnConfig(8, "District", DataType.STRING, false),
+                new ColumnConfig(9, "Province", DataType.STRING, false),
+                new ColumnConfig(10, "Detail", DataType.STRING, false),
+                new ColumnConfig(11, "Town", DataType.STRING, false),
+                new ColumnConfig(12, "StudentPhone", DataType.STRING, true),
+                new ColumnConfig(13, "CurriculumID", DataType.STRING, true)
         );
+        int startRow = 2; // Start reading from row 3 (skip title and header)
         try {
-            ExcelProcessingResult result = excelService.processExcelFile(filename, columnConfigs);
-            System.out.println("Processed data: " + result.getData());
-            System.out.println("Processing errors: " + result.getErrors());
+            StudentDAO studentDAO = new StudentDAO();
+            ExcelProcessingResult result = excelService.processExcelFile(filename, columnConfigs, startRow);
+            List<Student> students = new ArrayList<>();
+            for (Map<String, Object> row : result.getData()) {
+                Student student = new Student();
+                student.setStudentId((String) row.get("StudentID"));
+                student.setStudentEmail((String) row.get("StudentEmail"));
+                student.setLastName((String) row.get("LastName"));
+                student.setFirstName((String) row.get("FirstName"));
+                student.setStudentDoB((Date) row.get("StudentDoB"));
+                student.setStudentGender((Integer) row.get("StudentGender"));
+                student.setStudentSSN((String) row.get("StudentSSN"));
+                student.setDistrict((String) row.get("District"));
+                student.setProvince((String) row.get("Province"));
+                student.setDetail((String) row.get("Detail"));
+                student.setTown((String) row.get("Town"));
+                student.setStudentPhone((String) row.get("StudentPhone"));
+                student.setCurriculumId((String) row.get("CurriculumID"));
+                studentDAO.addStudent(student);
+            }
         } catch (IOException e) {
-            logger.error("Error processing Excel file: {}", e.getMessage());
+            logger.error("Error processing Excel file: {}", e.getMessage(), e);
         }
     }
 }
