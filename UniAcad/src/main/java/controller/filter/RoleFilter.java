@@ -19,7 +19,7 @@ import java.util.Map;
 
 /**
  * A filter that enforces authentication and role-based access control for /teacher/*, /student/*, and /staff/*.
- * Redirects unauthenticated users to /google-oauth and denies unauthorized access with /error.html.
+ * Redirects unauthenticated users to /google-oauth and denies unauthorized access with /error.
  */
 @WebFilter(
         filterName = "RoleFilter",
@@ -52,7 +52,7 @@ public class RoleFilter implements Filter {
      * Process the request for /teacher/*, /student/*, and /staff/*:
      * - Redirect unauthenticated users to /google-oauth.
      * - Enforce role-based access for Teacher (/teacher/*), Student (/student/*), and Admin (/staff/*).
-     * - Redirect to /error.html for invalid roles or unauthorized paths.
+     * - Redirect to /error for invalid roles or unauthorized paths.
      */
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
@@ -68,7 +68,7 @@ public class RoleFilter implements Filter {
         // Check if user is authenticated
         if (session == null || session.getAttribute("email") == null || session.getAttribute("role") == null) {
             logger.warn("Unauthorized access attempt to: {}. Redirecting to /google-oauth", path);
-            httpResponse.sendRedirect(contextPath);
+            httpResponse.sendRedirect(contextPath + "/google-oauth");
             return;
         }
 
@@ -78,7 +78,7 @@ public class RoleFilter implements Filter {
         if ((currentTime - lastAccessedTime) / 1000 > SESSION_TIMEOUT) {
             logger.warn("Session expired for user with email {}. Redirecting to /google-oauth", session.getAttribute("email"));
             session.invalidate();
-            httpResponse.sendRedirect(contextPath);
+            httpResponse.sendRedirect(contextPath + "/google-oauth");
             return;
         }
 
@@ -88,8 +88,8 @@ public class RoleFilter implements Filter {
 
         // Verify if role is valid
         if (!ROLE_PATH_PREFIXES.containsKey(role)) {
-            logger.warn("Invalid role {} for user with email {}. Redirecting to /error.html", role, email);
-            httpResponse.sendRedirect(contextPath + "/error.html?message=Invalid%20user%20role");
+            logger.warn("Invalid role {} for user with email {}. Redirecting to /error", role, email);
+            httpResponse.sendRedirect(contextPath + "/error?message=Invalid%20user%20role");
             return;
         }
 
@@ -102,9 +102,9 @@ public class RoleFilter implements Filter {
             logger.debug("User with email {} and role {} accessing allowed path: {}", email, role, path);
             chain.doFilter(request, response);
         } else {
-            logger.warn("User with email {} and role {} attempted to access forbidden path: {}. Redirecting to /error.html",
+            logger.warn("User with email {} and role {} attempted to access forbidden path: {}. Redirecting to /error",
                     email, role, path);
-            httpResponse.sendRedirect(contextPath + "/error.html?message=Access%20denied%20for%20this%20path");
+            httpResponse.sendRedirect(contextPath + "/error?message=Access%20denied%20for%20this%20path");
         }
     }
 
