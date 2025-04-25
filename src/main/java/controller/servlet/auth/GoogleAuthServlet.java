@@ -26,5 +26,4 @@ public class GoogleAuthServlet extends HttpServlet {
             throws ServletException, IOException {
         request.getRequestDispatcher("index.html").forward(request, response);
     }
-
 }

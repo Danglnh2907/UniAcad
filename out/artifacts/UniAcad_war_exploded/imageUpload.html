@@ -1,0 +1,87 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Upload</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <style>
+    img {
+      max-width: 200px;
+      height: auto;
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 flex flex-col items-center justify-center min-h-screen">
+<div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+  <h1 class="text-2xl font-bold mb-4 text-center">Upload Image</h1>
+
+  <!-- Image Upload Form -->
+  <form id="uploadForm" enctype="multipart/form-data" class="mb-6">
+    <div class="flex flex-col items-center">
+      <input type="file" id="imageFile" name="imageFile" accept=".png,.jpg" class="border p-2 rounded mb-2" required>
+      <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Upload</button>
+    </div>
+  </form>
+
+  <!-- Result Message -->
+  <div id="resultMessage" class="hidden text-center mb-4"></div>
+
+  <!-- Uploaded Image -->
+  <div id="imagePreview" class="hidden text-center">
+    <img id="uploadedImage" src="" alt="Uploaded Image">
+  </div>
+</div>
+
+<script>
+  document.getElementById('uploadForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    const fileInput = document.getElementById('imageFile');
+    const resultMessageDiv = document.getElementById('resultMessage');
+    const imagePreviewDiv = document.getElementById('imagePreview');
+    const uploadedImage = document.getElementById('uploadedImage');
+
+    // Reset UI
+    resultMessageDiv.classList.add('hidden');
+    imagePreviewDiv.classList.add('hidden');
+    resultMessageDiv.textContent = '';
+    uploadedImage.src = '';
+
+    const formData = new FormData();
+    formData.append('imageFile', fileInput.files[0]);
+
+    try {
+      const response = await fetch('http://localhost:9090/UniAcad_war/uploadImage', {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        resultMessageDiv.textContent = result.errorMessage || 'An error occurred.';
+        resultMessageDiv.className = 'bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 text-center';
+        resultMessageDiv.classList.remove('hidden');
+        return;
+      }
+
+      // Display success message and image
+      resultMessageDiv.textContent = result.message;
+      resultMessageDiv.className = 'bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4 text-center';
+      resultMessageDiv.classList.remove('hidden');
+
+      uploadedImage.src = result.imageUrl;
+      imagePreviewDiv.classList.remove('hidden');
+
+    } catch (error) {
+      resultMessageDiv.textContent = 'Failed to upload image: ' + error.message;
+      resultMessageDiv.className = 'bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 text-center';
+      resultMessageDiv.classList.remove('hidden');
+    }
+  });
+</script>
+</body>
+</html>

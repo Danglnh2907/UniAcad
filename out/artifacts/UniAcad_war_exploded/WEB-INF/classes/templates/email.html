@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Email Template</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #007bff;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
+        ul {
+            list-style-type: disc;
+            padding-left: 20px;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+        .footer {
+            margin-top: 20px;
+            font-size: 0.9em;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+<h1>Welcome, <span th:text="${name}">User</span>!</h1>
+<p>Thank you for joining our service. Please verify your account by clicking the button below:</p>
+<p>
+    <a th:href="${verificationLink}" class="button">Verify Your Account</a>
+</p>
+<p>Here are your items:</p>
+<ul>
+    <li th:each="item : ${items}" th:text="${item}">Item</li>
+</ul>
+<p>
+    <img th:src="'cid:banner'" alt="Banner Image" />
+</p>
+<p>Please find the attached PDF document for more details.</p>
+<div class="footer">
+    <p>Best regards,</p>
+    <p>UniAcad Team</p>
+    <p><a th:href="${baseUrl}" th:text="${baseUrl}">Our Website</a></p>
+</div>
+</body>
+</html>
