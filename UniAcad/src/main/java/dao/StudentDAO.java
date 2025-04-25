@@ -7,6 +7,7 @@ import util.service.database.DBContext;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.List;
 
 public class StudentDAO extends DBContext {
     private static final Logger logger = org.slf4j.LoggerFactory.getLogger(StudentDAO.class);
@@ -48,7 +49,7 @@ public class StudentDAO extends DBContext {
 
     public static void main(String[] args) {
         StudentDAO studentDAO = new StudentDAO();
-        String email = "abc@gmail.com";
+        String email = "khainhce182286@gmail.com";
         studentDAO.getStudentByEmail(email);
     }
 
@@ -87,6 +88,20 @@ public class StudentDAO extends DBContext {
             return student;
         } catch (SQLException e) {
             logger.error("Error mapping result set to Student object", e);
+        }
+        return null;
+    }
+
+    public String getNameByEmail(String email) {
+        String sql = "SELECT CONCAT(LastName, ' ',MiddleName,' ', FirstName) AS FullName FROM Student WHERE StudentEmail = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, email);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getString("FullName");
+            }
+        } catch (SQLException e) {
+            logger.error("Error retrieving name by email", e);
         }
         return null;
     }
