@@ -9,73 +9,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="d134aec1-3956-4eab-b880-751dd2074a09" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/aws.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/codeStyles/Project.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/codeStyles/codeStyleConfig.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/dataSources.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/discord.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/encodings.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/git_toolbox_prj.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/material_theme_project_new.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/webContexts.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.mvn/wrapper/maven-wrapper.jar" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.mvn/wrapper/maven-wrapper.properties" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/mvnw" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/mvnw.cmd" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/controller/api/auth/ExcelUploadAPI.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/controller/api/auth/GoogleAuthAPI.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/controller/api/auth/ImageUploadAPI.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/controller/filter/RoleFilter.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/controller/servlet/auth/GoogleAuthServlet.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/controller/servlet/auth/StudentHomePageServlet.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/dao/StaffDAO.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/dao/StudentDAO.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/dao/TeacherDAO.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/model/Attendent.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/model/Class.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/model/Course.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/model/Curriculum.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/model/Department.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/model/Grade.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/model/Group.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/model/Include.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/model/Major.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/model/Room.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/model/Slot.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/model/Staff.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/model/Student.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/model/Study.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/model/Subject.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/model/Teacher.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/model/Term.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/util/service/database/DBContext.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/util/service/email/MailService.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/util/service/excel/ExcelService.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/util/service/file/FileService.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/util/service/normalization/NormalizationService.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/util/service/security/SecurityService.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/util/service/security/VerifyChecking.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/database.properties" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/docx/sample.docx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/img/1cd2ff272e2531b8041264de38db1b5f.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/img/4d3b20f647cbdeb288013a15cce39fdf.jpg" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/img/51a2644c1491853d60a9688ed8f4fa9e.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/img/7575b9251670cd15f3423fd911239179.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/img/948015252763872ed01b79cbbbb7c68b.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/img/f8d71b6c42f7300871f9e091c6a737e3.jpg" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/oauth.properties" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/pdf/demo.pdf" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/templates/email.html" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/templates/verification-email.html" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/resources/xlsx/data.xlsx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/webapp/index.html" beforeDir="false" />
-    </list>
+    <list default="true" id="d134aec1-3956-4eab-b880-751dd2074a09" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -286,7 +220,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1745570185602</updated>
-      <workItem from="1745570189314" duration="346000" />
+      <workItem from="1745570189314" duration="434000" />
     </task>
     <servers />
   </component>
