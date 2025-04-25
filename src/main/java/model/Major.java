@@ -1,13 +1,19 @@
 package model;
 
 public class Major {
-    private String majorId;
-    private String majorName;
+    private String majorId; // CHAR(2)
+    private String majorName; // VARCHAR
 
-    public Major(String majorId) {
-        this.majorId = majorId;
+    // Constructor
+    public Major() {
     }
 
+    public Major(String majorId, String majorName) {
+        this.majorId = majorId;
+        this.majorName = majorName;
+    }
+
+    // Getters and Setters
     public String getMajorId() {
         return majorId;
     }

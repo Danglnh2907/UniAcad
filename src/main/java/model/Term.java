@@ -1,14 +1,18 @@
 package model;
 
 public class Term {
-    private String termId;
-    private String termName;
+    private String termId; // CHAR(4)
+    private String termName; // VARCHAR
 
+    // Constructor
+    public Term() {
+    }
     public Term(String termId, String termName) {
         this.termId = termId;
         this.termName = termName;
     }
 
+    // Getters and Setters
     public String getTermId() {
         return termId;
     }
