@@ -3,10 +3,6 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd"
          version="6.0">
-    <servlet>
-        <servlet-name>GoogleAuthServlet</servlet-name>
-        <servlet-class>controller.servlet.auth.GoogleAuthServlet</servlet-class>
-    </servlet>
     <servlet-mapping>
         <servlet-name>GoogleAuthServlet</servlet-name>
         <url-pattern></url-pattern>
