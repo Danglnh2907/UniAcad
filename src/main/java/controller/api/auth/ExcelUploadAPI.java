@@ -1,4 +1,4 @@
-package controller.servlet.auth;
+package controller.api.auth;
 
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
@@ -26,10 +26,10 @@ import java.util.Map;
 
 import com.google.gson.Gson;
 
-@WebServlet("/uploadExcel")
+@WebServlet("/api/uploadExcel")
 @MultipartConfig(maxFileSize = 10 * 1024 * 1024) // 10MB max file size
-public class ExcelUploadServlet extends HttpServlet {
-    private static final Logger logger = LoggerFactory.getLogger(ExcelUploadServlet.class);
+public class ExcelUploadAPI extends HttpServlet {
+    private static final Logger logger = LoggerFactory.getLogger(ExcelUploadAPI.class);
     private FileService fileService;
     private ExcelService excelService;
     private Gson gson;
@@ -40,12 +40,6 @@ public class ExcelUploadServlet extends HttpServlet {
         fileService = new FileService(context);
         excelService = new ExcelService(fileService);
         gson = new Gson();
-    }
-
-    @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        // Serve the static HTML page
-        request.getRequestDispatcher("/excelUpload.html").forward(request, response);
     }
 
     @Override

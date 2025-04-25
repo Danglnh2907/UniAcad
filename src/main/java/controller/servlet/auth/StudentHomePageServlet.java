@@ -10,21 +10,19 @@ import java.io.IOException;
 
 /**
  * A custom Servlet for handling HTTP requests.
- * Mapped to /googleauthservlet by default.
+ * Mapped to /homepageservlet by default.
  */
 @WebServlet(
-        name = "GoogleAuthServlet",
-        value = "/google-oauth"
+        name = "HomePageServlet",
+        value = "/student/homepage"
 )
-public class GoogleAuthServlet extends HttpServlet {
-
+public class StudentHomePageServlet extends HttpServlet {
     /**
      * Handle GET requests.
      */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        request.getRequestDispatcher("index.html").forward(request, response);
+        request.getRequestDispatcher("accound.jsp").forward(request, response);
     }
-
 }

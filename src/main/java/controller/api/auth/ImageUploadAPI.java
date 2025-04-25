@@ -1,4 +1,4 @@
-package controller.servlet.auth;
+package controller.api.auth;
 
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
@@ -20,10 +20,10 @@ import java.util.Map;
 
 import com.google.gson.Gson;
 
-@WebServlet("/uploadImage")
+@WebServlet("/api/uploadImage")
 @MultipartConfig(maxFileSize = 5 * 1024 * 1024) // 5MB max file size
-public class ImageUploadServlet extends HttpServlet {
-    private static final Logger logger = LoggerFactory.getLogger(ImageUploadServlet.class);
+public class ImageUploadAPI extends HttpServlet {
+    private static final Logger logger = LoggerFactory.getLogger(ImageUploadAPI.class);
     private FileService fileService;
     private Gson gson;
 
@@ -32,12 +32,6 @@ public class ImageUploadServlet extends HttpServlet {
         ServletContext context = getServletContext();
         fileService = new FileService(context);
         gson = new Gson();
-    }
-
-    @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        // Serve the static HTML page
-        request.getRequestDispatcher("/imageUpload.html").forward(request, response);
     }
 
     @Override
