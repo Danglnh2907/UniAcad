@@ -68,7 +68,7 @@ public class RoleFilter implements Filter {
         // Check if user is authenticated
         if (session == null || session.getAttribute("email") == null || session.getAttribute("role") == null) {
             logger.warn("Unauthorized access attempt to: {}. Redirecting to /google-oauth", path);
-            httpResponse.sendRedirect(contextPath + "/google-oauth");
+            httpResponse.sendRedirect(contextPath);
             return;
         }
 
@@ -78,7 +78,7 @@ public class RoleFilter implements Filter {
         if ((currentTime - lastAccessedTime) / 1000 > SESSION_TIMEOUT) {
             logger.warn("Session expired for user with email {}. Redirecting to /google-oauth", session.getAttribute("email"));
             session.invalidate();
-            httpResponse.sendRedirect(contextPath + "/google-oauth");
+            httpResponse.sendRedirect(contextPath);
             return;
         }
 
