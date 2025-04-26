@@ -537,6 +537,7 @@ public class ExcelService {
                 student.setTown((String) row.get("Town"));
                 student.setStudentPhone((String) row.get("StudentPhone"));
                 student.setCurriculumId((String) row.get("CurriculumID"));
+                logger.info("Processed student: student email: {}", student.getStudentEmail());
                 studentDAO.addStudent(student);
             }
         } catch (IOException e) {
