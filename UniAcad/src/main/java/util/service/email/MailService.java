@@ -778,18 +778,18 @@ public class MailService {
             );
             Map<String, String> imageMap = mailService.buildImageMap(imagePaths, imageContentIds);
 
-            List<String> attachmentPaths = List.of(
-                    "pdf/demo.pdf",
-                    "docx/sample.docx",
-                    "xlsx/data.xlsx"
-            );
+//            List<String> attachmentPaths = List.of(
+//                    "pdf/demo.pdf",
+//                    "docx/sample.docx",
+//                    "xlsx/data.xlsx"
+//            );
 
             Map<String, String> failedRecipients = mailService.sendPersonalizedWithAttachments(
-                    "verification-email",
-                    "Welcome to Our Service123",
+                    "welcome",
+                    "Welcome",
                     variables,
                     imageMap,
-                    attachmentPaths,
+                    null,
                     10
             );
 

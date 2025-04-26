@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>Welcome to UniAcad</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333333; margin: 0; padding: 0; background-color: #f4f4f4;">
+<div style="max-width: 600px; margin: 20px auto; padding: 0;">
+  <div style="text-align: center; padding: 20px; background-color: #3b82f6; color: #ffffff; border-radius: 8px 8px 0 0;">
+    <h1 style="margin: 0; font-size: 24px;">Welcome to UniAcad!</h1>
+  </div>
+  <div style="background-color: #ffffff; padding: 20px; border-radius: 0 0 8px 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+    <p style="margin: 0 0 10px;">Hello <span th:text="${name}" style="font-weight: bold;">Student</span>,</p>
+    <p style="margin: 0 0 10px;">Thank you for joining UniAcad! We're excited to have you in our community.</p>
+    <p style="margin: 0 0 10px;">Please verify your email by clicking the button below:</p>
+    <p style="margin: 20px 0; text-align: center;">
+      <a th:href="${verificationLink}" style="display: inline-block; padding: 10px 20px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 4px; font-weight: bold;">Verify Email</a>
+    </p>
+    <p style="margin: 0 0 10px;">Your verification token: <strong th:text="${token}">N/A</strong></p>
+  </div>
+  <div style="text-align: center; padding: 10px; font-size: 12px; color: #666666;">
+    <p style="margin: 0;">© 2025 UniAcad. All rights reserved.</p>
+    <p style="margin: 5px 0;">
+      <a th:href="${baseUrl}" th:text="${baseUrl}" style="color: #2563eb; text-decoration: none;">Visit our website</a>
+    </p>
+  </div>
+</div>
+</body>
+</html>

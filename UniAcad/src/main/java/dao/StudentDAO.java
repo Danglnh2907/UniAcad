@@ -7,6 +7,8 @@ import util.service.database.DBContext;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class StudentDAO extends DBContext {
     private static final Logger logger = org.slf4j.LoggerFactory.getLogger(StudentDAO.class);
@@ -48,7 +50,7 @@ public class StudentDAO extends DBContext {
 
     public static void main(String[] args) {
         StudentDAO studentDAO = new StudentDAO();
-        String email = "abc@gmail.com";
+        String email = "khainhce182286@gmail.com";
         studentDAO.getStudentByEmail(email);
     }
 
@@ -89,5 +91,57 @@ public class StudentDAO extends DBContext {
             logger.error("Error mapping result set to Student object", e);
         }
         return null;
+    }
+
+    public String getNameByEmail(String email) {
+        String sql = "SELECT CONCAT(LastName, ' ',MiddleName,' ', FirstName) AS FullName FROM Student WHERE StudentEmail = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, email);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getString("FullName");
+            }
+        } catch (SQLException e) {
+            logger.error("Error retrieving name by email", e);
+        }
+        return null;
+    }
+
+    public List<Student> getAllStudents() {
+        String sql = "SELECT * FROM Student";
+        List<Student> students = new ArrayList<>();
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                students.add(resultMap(rs, new Student()));
+            }
+        } catch (SQLException e) {
+            logger.error("Error retrieving all students", e);
+        }
+        return students;
+    }
+
+    public boolean addStudent(Student student) {
+        String sql = "INSERT INTO Student (StudentID, StudentEmail, LastName, FirstName, StudentDoB, StudentGender, StudentSSN, District, Province, Detail, Town, StudentPhone, CurriculumID) VALUES (?,?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, student.getStudentId());
+            ps.setString(2, student.getStudentEmail());
+            ps.setString(3, student.getLastName());
+            ps.setString(4, student.getFirstName());
+            ps.setDate(5, new java.sql.Date(student.getStudentDoB().getTime()));
+            ps.setInt(6, student.getStudentGender());
+            ps.setString(7, student.getStudentSSN());
+            ps.setString(8, student.getDistrict());
+            ps.setString(9, student.getProvince());
+            ps.setString(10, student.getDetail());
+            ps.setString(11, student.getTown());
+            ps.setString(12, student.getStudentPhone());
+            ps.setString(13, student.getCurriculumId());
+
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            logger.error("Error adding new student", e);
+        }
+        return false;
     }
 }

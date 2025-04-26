@@ -3,7 +3,7 @@ package model;
 public class Staff {
     private String staffId; // VARCHAR
     private String lastName; // VARCHAR
-    private String midleName; // VARCHAR
+    private String middleName; // VARCHAR
     private String fullName; // VARCHAR
     private String staffEmail; // VARCHAR
     private String staffPhone; // VARCHAR
@@ -12,10 +12,10 @@ public class Staff {
     public Staff() {
     }
 
-    public Staff(String staffId, String lastName, String midleName, String fullName, String staffEmail, String staffPhone) {
+    public Staff(String staffId, String lastName, String middleName, String fullName, String staffEmail, String staffPhone) {
         this.staffId = staffId;
         this.lastName = lastName;
-        this.midleName = midleName;
+        this.middleName = middleName;
         this.fullName = fullName;
         this.staffEmail = staffEmail;
         this.staffPhone = staffPhone;
@@ -38,12 +38,12 @@ public class Staff {
         this.lastName = lastName;
     }
 
-    public String getMidleName() {
-        return midleName;
+    public String getMiddleName() {
+        return middleName;
     }
 
-    public void setMidleName(String midleName) {
-        this.midleName = midleName;
+    public void setMiddleName(String midleName) {
+        this.middleName = midleName;
     }
 
     public String getFullName() {

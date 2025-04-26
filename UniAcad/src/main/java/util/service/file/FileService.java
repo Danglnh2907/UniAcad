@@ -71,7 +71,7 @@ public class FileService {
             logger.error("Failed to load env file {}: {}", envFilePath, e.getMessage());
         }
         // Fallback to default path
-        String defaultPath = "C:\\Program Files\\Apache Software Foundation\\Tomcat 11.0\\webapps\\storage";
+        String defaultPath = "D:\\storage";
         return defaultPath + File.separator;
     }
 

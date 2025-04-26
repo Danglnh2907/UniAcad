@@ -11,12 +11,18 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.util.store.MemoryDataStoreFactory;
+import dao.StaffDAO;
+import dao.StudentDAO;
+import dao.TeacherDAO;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import model.Staff;
+import model.Student;
+import model.Teacher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -115,15 +121,32 @@ public class GoogleAuthAPI extends HttpServlet {
             com.google.gson.JsonObject userInfo = gson.fromJson(userInfoJson, com.google.gson.JsonObject.class);
             String email = userInfo.get("email").getAsString();
             String fullName = userInfo.get("name") != null ? userInfo.get("name").getAsString() : "Unknown";
-
-            // Store email and full name in session
+            StudentDAO studentDAO = new StudentDAO();
+            TeacherDAO teacherDAO = new TeacherDAO();
+            StaffDAO staffDAO = new StaffDAO();
+            Staff currentStaff = staffDAO.getStaffByEmail(email);
+            Student currentStudent = studentDAO.getStudentByEmail(email);
+            Teacher currentTeacher = teacherDAO.getTeacherByEmail(email);
             HttpSession session = request.getSession();
-            session.setAttribute("email", email);
-            session.setAttribute("full_name", fullName);
-            logger.info("User logged in with email: {}, full name: {}", email, fullName);
-
-            response.sendRedirect("/student/homepage");
-
+            if (currentStaff != null) {
+                session.setAttribute("email", email);
+                session.setAttribute("full_name", fullName);
+                session.setAttribute("role", "staff");
+                response.sendRedirect(request.getContextPath() + "/staff/home");
+            } else if (currentStudent != null) {
+                session.setAttribute("email", email);
+                session.setAttribute("full_name", fullName);
+                session.setAttribute("role", "student");
+                response.sendRedirect(request.getContextPath() + "/student/home");
+            } else if (currentTeacher != null) {
+                session.setAttribute("email", email);
+                session.setAttribute("full_name", fullName);
+                session.setAttribute("role", "teacher");
+                response.sendRedirect(request.getContextPath() + "/teacher/home");
+            } else
+            {
+                response.sendRedirect(request.getContextPath());
+            }
         } catch (Exception e) {
             logger.error("Google OAuth error: {}", e.getMessage(), e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);

@@ -166,6 +166,12 @@
         <artifactId>log4j-api</artifactId>
         <version>2.20.0</version> <!-- Hoặc phiên bản mới nhất -->
     </dependency>
+      <!-- https://mvnrepository.com/artifact/vn.payos/payos-java -->
+      <dependency>
+          <groupId>vn.payos</groupId>
+          <artifactId>payos-java</artifactId>
+          <version>1.0.3</version>
+      </dependency>
     <!-- Log4j Core -->
     <dependency>
         <groupId>org.apache.logging.log4j</groupId>
@@ -180,10 +186,10 @@
   </dependencies>
   <build>
     <plugins>
-<plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-war-plugin</artifactId>
-        <version>3.4.0</version>
-      </plugin>    </plugins>
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-war-plugin</artifactId>
+            <version>3.4.0</version>
+        </plugin>    </plugins>
   </build>
 </project>
