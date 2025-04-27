@@ -85,15 +85,14 @@ public class WarningService {
      * Determines warning type based on absence and grade.
      */
     private String determineWarning(double absentRate, double mark) {
-        if (absentRate >= 0.4) {
-            return "Banned from Exam";
-        } else if (absentRate >= 0.2 && mark < 5.0) {
-            return "High Risk Fail";
+        if (absentRate >= 0.2) {
+            return "Banned from Exam"; // 20% trở lên → Cấm thi
+        } else if (absentRate >= 0.15) {
+            return "Absence Warning"; // 15% trở lên → Cảnh báo vắng học
         } else if (mark < 5.0) {
-            return "Low Grade Warning";
-        } else if (absentRate >= 0.2) {
-            return "High Absence Warning";
+            return "Low Grade Warning"; // Học lực yếu
         }
-        return null;
+        return null; // Không cảnh báo
     }
+
 }
