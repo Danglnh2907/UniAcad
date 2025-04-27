@@ -1,8 +1,6 @@
 package util.service.excel;
 
 import dao.StudentDAO;
-import jakarta.servlet.ServletContext;
-import model.Student;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.*;
 import org.slf4j.Logger;
@@ -519,26 +517,9 @@ public class ExcelService {
         );
         int startRow = 2; // Start reading from row 3 (skip title and header)
         try {
-            StudentDAO studentDAO = new StudentDAO();
             ExcelProcessingResult result = excelService.processExcelFile(filename, columnConfigs, startRow);
-            List<Student> students = new ArrayList<>();
             for (Map<String, Object> row : result.getData()) {
-                Student student = new Student();
-                student.setStudentId((String) row.get("StudentID"));
-                student.setStudentEmail((String) row.get("StudentEmail"));
-                student.setLastName((String) row.get("LastName"));
-                student.setFirstName((String) row.get("FirstName"));
-                student.setStudentDoB((Date) row.get("StudentDoB"));
-                student.setStudentGender((Integer) row.get("StudentGender"));
-                student.setStudentSSN((String) row.get("StudentSSN"));
-                student.setDistrict((String) row.get("District"));
-                student.setProvince((String) row.get("Province"));
-                student.setDetail((String) row.get("Detail"));
-                student.setTown((String) row.get("Town"));
-                student.setStudentPhone((String) row.get("StudentPhone"));
-                student.setCurriculumId((String) row.get("CurriculumID"));
-                logger.info("Processed student: student email: {}", student.getStudentEmail());
-                studentDAO.addStudent(student);
+
             }
         } catch (IOException e) {
             logger.error("Error processing Excel file: {}", e.getMessage(), e);
