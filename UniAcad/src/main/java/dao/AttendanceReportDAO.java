@@ -92,9 +92,7 @@ public class AttendanceReportDAO extends DBContext {
                     String subjectName = rs.getString("SubjectName");
                     int totalSlots = rs.getInt("TotalSlots");
                     int absentSlots = rs.getInt("AbsentSlots");
-
                     double absentRate = (totalSlots == 0) ? 0.0 : (double) absentSlots / totalSlots;
-
                     reports.add(new AttendanceReport(studentId, studentName, subjectName, totalSlots, absentSlots, absentRate));
                 }
             }
