@@ -20,9 +20,6 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import model.database.Staff;
-import model.database.Student;
-import model.database.Teacher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,7 +27,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
 import java.util.Arrays;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
 
@@ -44,26 +40,28 @@ import com.google.gson.Gson;
 @WebServlet("/api/google-auth")
 public class GoogleAuthAPI extends HttpServlet {
     private static final Logger logger = LoggerFactory.getLogger(GoogleAuthAPI.class);
+
     private static final HttpTransport HTTP_TRANSPORT = new NetHttpTransport();
     private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
     private static final String USERINFO_ENDPOINT = "https://www.googleapis.com/oauth2/v3/userinfo";
-    private static AuthorizationCodeFlow flow;
-    private static Gson gson;
+
+    private AuthorizationCodeFlow flow;
+    private Gson gson;
 
     @Override
     public void init() throws ServletException {
         try {
-            Properties oauthProps = new Properties();
+            Properties props = new Properties();
             try (InputStream input = getClass().getClassLoader().getResourceAsStream("oauth.properties")) {
                 if (input == null) {
                     throw new IOException("Unable to find oauth.properties");
                 }
-                oauthProps.load(input);
+                props.load(input);
             }
 
-            String clientId = oauthProps.getProperty("oauth.client_id");
-            String clientSecret = oauthProps.getProperty("oauth.client_secret");
-            String scope = oauthProps.getProperty("oauth.google_scope");
+            String clientId = props.getProperty("oauth.client_id");
+            String clientSecret = props.getProperty("oauth.client_secret");
+            String scope = props.getProperty("oauth.google_scope");
 
             GoogleClientSecrets.Details web = new GoogleClientSecrets.Details();
             web.setClientId(clientId);
@@ -72,109 +70,95 @@ public class GoogleAuthAPI extends HttpServlet {
 
             flow = new GoogleAuthorizationCodeFlow.Builder(
                     HTTP_TRANSPORT, JSON_FACTORY, clientSecrets,
-                    Arrays.asList(scope.split(" ")))
-                    .setDataStoreFactory(new MemoryDataStoreFactory())
-                    .build();
+                    Arrays.asList(scope.split(" "))
+            ).setDataStoreFactory(new MemoryDataStoreFactory()).build();
+
             gson = new Gson();
         } catch (IOException e) {
-            throw new ServletException("Failed to initialize Google OAuth flow", e);
+            throw new ServletException("Failed to initialize Google OAuth", e);
         }
     }
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        response.setContentType("application/json");
-        response.setCharacterEncoding("UTF-8");
+
+        response.setContentType("application/json;charset=UTF-8");
         PrintWriter out = response.getWriter();
 
         String code = request.getParameter("code");
+
         if (code == null) {
-            // Step 1: Redirect to Google OAuth
-            try {
-                AuthorizationCodeRequestUrl authUrl = flow.newAuthorizationUrl()
-                        .setRedirectUri(getRedirectUri(request));
-                logger.info("Redirecting to Google OAuth: {}", authUrl.build());
-                response.sendRedirect(authUrl.build());
-            } catch (Exception e) {
-                logger.error("Error redirecting to Google OAuth: {}", e.getMessage(), e);
-                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-                out.println(gson.toJson(createErrorResponse("Failed to initiate Google authentication")));
-            }
+            // Step 1: Redirect to Google Auth
+            String dynamicRedirectUri = buildDynamicRedirectUri(request);
+            response.sendRedirect(flow.newAuthorizationUrl().setRedirectUri(dynamicRedirectUri).build());
             return;
         }
 
-        // Step 2: Process callback from Google
         try {
+            // Step 2: Process callback
+            String dynamicRedirectUri = buildDynamicRedirectUri(request);
+
             TokenResponse tokenResponse = flow.newTokenRequest(code)
-                    .setRedirectUri(getRedirectUri(request))
+                    .setRedirectUri(dynamicRedirectUri)
                     .execute();
 
             String accessToken = tokenResponse.getAccessToken();
-            GenericUrl url = new GenericUrl(USERINFO_ENDPOINT);
-            com.google.api.client.http.HttpRequest userInfoRequest =
-                    HTTP_TRANSPORT.createRequestFactory().buildGetRequest(url);
-            userInfoRequest.getHeaders().setAuthorization("Bearer " + accessToken);
-            com.google.api.client.http.HttpResponse userInfoResponse = userInfoRequest.execute();
 
+            com.google.api.client.http.HttpRequest userInfoRequest = HTTP_TRANSPORT.createRequestFactory()
+                    .buildGetRequest(new GenericUrl(USERINFO_ENDPOINT));
+            userInfoRequest.getHeaders().setAuthorization("Bearer " + accessToken);
+
+            com.google.api.client.http.HttpResponse userInfoResponse = userInfoRequest.execute();
             String userInfoJson = userInfoResponse.parseAsString();
             com.google.gson.JsonObject userInfo = gson.fromJson(userInfoJson, com.google.gson.JsonObject.class);
+
             String email = userInfo.get("email").getAsString();
-            String fullName = userInfo.get("name") != null ? userInfo.get("name").getAsString() : "Unknown";
-            StudentDAO studentDAO = new StudentDAO();
-            TeacherDAO teacherDAO = new TeacherDAO();
-            StaffDAO staffDAO = new StaffDAO();
-            Staff currentStaff = staffDAO.getStaffByEmail(email);
-            Student currentStudent = studentDAO.getStudentByEmail(email);
-            Teacher currentTeacher = teacherDAO.getTeacherByEmail(email);
-            HttpSession session = request.getSession();
-            if (currentStaff != null) {
-                session.setAttribute("email", email);
-                session.setAttribute("full_name", fullName);
-                session.setAttribute("role", "staff");
-                response.sendRedirect(request.getContextPath() + "/staff/home");
-            } else if (currentStudent != null) {
-                session.setAttribute("email", email);
-                session.setAttribute("full_name", fullName);
-                session.setAttribute("role", "student");
-                response.sendRedirect(request.getContextPath() + "/student/home");}
-            else if (currentTeacher != null) {
-                session.setAttribute("email", email);
-                session.setAttribute("full_name", fullName);
-                session.setAttribute("role", "teacher");
-                response.sendRedirect(request.getContextPath() + "/teacher/home");
-            } else {
-                response.sendRedirect(request.getContextPath());
-            }
+            String fullName = userInfo.has("name") ? userInfo.get("name").getAsString() : "Unknown";
+
+            handleUserLogin(request.getSession(), email, fullName, response, request.getContextPath());
+
         } catch (Exception e) {
-            logger.error("Google OAuth error: {}", e.getMessage(), e);
+            logger.error("Google OAuth error", e);
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            out.println(gson.toJson(createErrorResponse("Google authentication failed: " + e.getMessage())));
+            out.write(gson.toJson(Map.of("error", "Authentication failed")));
         } finally {
             out.flush();
         }
     }
 
-    private String getRedirectUri(HttpServletRequest request) {
-        Properties oauthProps = new Properties();
-        try (InputStream input = getClass().getClassLoader().getResourceAsStream("oauth.properties")) {
-            if (input == null) {
-                throw new IOException("Unable to find oauth.properties");
-            }
-            oauthProps.load(input);
-        } catch (IOException e) {
-            logger.error("Failed to load oauth.properties: {}", e.getMessage(), e);
-        }
-        String redirectUri = oauthProps.getProperty("oauth.google_redirect_uri");
-        // Ensure redirect URI matches the request context
-        return redirectUri != null ? redirectUri : request.getScheme() + "://" +
-                request.getServerName() + ":" + request.getServerPort() +
-                request.getContextPath() + "/google-auth";
+    private String buildDynamicRedirectUri(HttpServletRequest request) {
+        return request.getScheme() + "://" +
+                request.getServerName() +
+                ":" + request.getServerPort() +
+                request.getContextPath() +
+                "/api/google-auth";
     }
 
-    private Map<String, String> createErrorResponse(String message) {
-        Map<String, String> error = new LinkedHashMap<>();
-        error.put("errorMessage", message);
-        return error;
+    private void handleUserLogin(HttpSession session, String email, String fullName, HttpServletResponse response, String contextPath) throws IOException {
+        StudentDAO studentDAO = new StudentDAO();
+        TeacherDAO teacherDAO = new TeacherDAO();
+        StaffDAO staffDAO = new StaffDAO();
+
+        if (staffDAO.getStaffByEmail(email) != null) {
+            setupSession(session, email, fullName, "staff");
+            response.sendRedirect(contextPath + "/staff/home");
+        } else if (studentDAO.getStudentByEmail(email) != null) {
+            setupSession(session, email, fullName, "student");
+            response.sendRedirect(contextPath + "/student/home");
+        } else if (teacherDAO.getTeacherByEmail(email) != null) {
+            setupSession(session, email, fullName, "teacher");
+            response.sendRedirect(contextPath + "/teacher/home");
+        } else {
+            logger.warn("Unauthorized email tried login: {}", email);
+            response.sendRedirect(contextPath + "/");
+        }
+    }
+
+    private void setupSession(HttpSession session, String email, String fullName, String role) {
+        session.setAttribute("email", email);
+        session.setAttribute("full_name", fullName);
+        session.setAttribute("role", role);
+        logger.info("Session initialized for email: {}, role: {}", email, role);
     }
 }
