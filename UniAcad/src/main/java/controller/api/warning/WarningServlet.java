@@ -1,4 +1,4 @@
-package controller.api.auth;
+package controller.api.warning;
 
 import model.datasupport.WarningInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
