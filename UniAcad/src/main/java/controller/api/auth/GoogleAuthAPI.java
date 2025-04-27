@@ -20,9 +20,9 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import model.Staff;
-import model.Student;
-import model.Teacher;
+import model.database.Staff;
+import model.database.Student;
+import model.database.Teacher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -137,14 +137,13 @@ public class GoogleAuthAPI extends HttpServlet {
                 session.setAttribute("email", email);
                 session.setAttribute("full_name", fullName);
                 session.setAttribute("role", "student");
-                response.sendRedirect(request.getContextPath() + "/student/home");
-            } else if (currentTeacher != null) {
+                response.sendRedirect(request.getContextPath() + "/student/home");}
+            else if (currentTeacher != null) {
                 session.setAttribute("email", email);
                 session.setAttribute("full_name", fullName);
                 session.setAttribute("role", "teacher");
                 response.sendRedirect(request.getContextPath() + "/teacher/home");
-            } else
-            {
+            } else {
                 response.sendRedirect(request.getContextPath());
             }
         } catch (Exception e) {

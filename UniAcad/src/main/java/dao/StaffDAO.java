@@ -1,124 +1,209 @@
 package dao;
 
-import model.Staff;
+import model.database.Staff;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import util.service.database.DBContext;
-import util.service.normalization.NormalizationService;
-import util.service.security.VerifyChecking;
 
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class StaffDAO extends DBContext {
-    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(StaffDAO.class);
-    private NormalizationService normalizationService = new NormalizationService();
-    private VerifyChecking verifyChecking = new VerifyChecking();
+    private static final Logger logger = LoggerFactory.getLogger(StaffDAO.class);
 
     public StaffDAO() {
         super();
     }
 
+    /**
+     * Checks if a StaffID already exists in the database.
+     */
+    public boolean checkStaffExists(String staffId) {
+        String query = "SELECT COUNT(*) FROM Staff WHERE StaffID = ?";
+        try (PreparedStatement statement = connection.prepareStatement(query)) {
+            statement.setString(1, staffId);
+            ResultSet resultSet = statement.executeQuery();
+            if (resultSet.next()) {
+                return resultSet.getInt(1) > 0;
+            }
+        } catch (SQLException e) {
+            logger.error("Error checking staff existence: {}", staffId, e);
+        }
+        return false;
+    }
+
+    /**
+     * Checks if a StaffEmail already exists in the database.
+     */
     public boolean checkEmailExists(String email) {
-        String sql = "SELECT COUNT(*) FROM Staff WHERE StaffEmail = ?";
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
-            ps.setString(1, email);
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) {
-                return rs.getInt(1) > 0;
+        String query = "SELECT COUNT(*) FROM Staff WHERE StaffEmail = ?";
+        try (PreparedStatement statement = connection.prepareStatement(query)) {
+            statement.setString(1, email);
+            ResultSet resultSet = statement.executeQuery();
+            if (resultSet.next()) {
+                return resultSet.getInt(1) > 0;
             }
         } catch (SQLException e) {
-            logger.error("Error checking email existence: {}", e.getMessage(), e);
+            logger.error("Error checking email existence: {}", email, e);
         }
-        logger.warn("Email {} does not exist", email);
         return false;
     }
 
-    public boolean checkStaffID(String staffId) {
-        String sql = "SELECT COUNT(*) FROM Staff WHERE StaffID = ?";
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
-            ps.setString(1, staffId);
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) {
-                return rs.getInt(1) > 0;
-            }
-        } catch (SQLException e) {
-            logger.error("Error checking staff ID existence: {}", e.getMessage(), e);
+    /**
+     * Maps a ResultSet to a Staff object.
+     */
+    private Staff resultMap(ResultSet resultSet) throws SQLException {
+        if (!resultSet.next()) {
+            return null;
         }
-        logger.warn("Staff with ID {} does not exist", staffId);
-        return false;
+
+        Staff staff = new Staff();
+        staff.setStaffID(resultSet.getString("StaffID"));
+        staff.setStaffName(resultSet.getString("StaffName"));
+        staff.setStaffEmail(resultSet.getString("StaffEmail"));
+        staff.setStaffPhone(resultSet.getString("StaffPhone"));
+        staff.setStaffStatus(resultSet.getInt("StaffStatus"));
+
+        return staff;
     }
 
-    public Staff getStaffByEmail(String email) {
-        String sql = "SELECT * FROM Staff WHERE StaffEmail = ?";
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
-            ps.setString(1, email);
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) {
-                logger.info("Found staff with email {}", email);
-                return resultMap(rs, new Staff());
-            }
+    /**
+     * Retrieves a staff member by StaffID.
+     */
+    public Staff getStaffById(String staffId) {
+        String query = "SELECT * FROM Staff WHERE StaffID = ?";
+        try (PreparedStatement statement = connection.prepareStatement(query)) {
+            statement.setString(1, staffId);
+            ResultSet resultSet = statement.executeQuery();
+            return resultMap(resultSet);
         } catch (SQLException e) {
-            logger.error("Error retrieving staff by email: {}", e.getMessage(), e);
+            logger.error("Error retrieving staff by ID: {}", staffId, e);
         }
-        logger.warn("Staff with email {} does not exist", email);
         return null;
     }
 
-    public boolean addStaff(String staffId, String email, String lastName, String middleName, String staffPhone) {
-        // Kiểm tra độ dài StaffID
-        if (staffId.length() > 10) {
-            logger.warn("StaffID {} exceeds maximum length of 10 characters", staffId);
-            return false;
-        }
-
-        if (checkEmailExists(email)) {
-            logger.warn("Email {} already exists", email);
-            return false;
-        }
-        if (!verifyChecking.verifyEmail(email)) {
-            logger.warn("Invalid email format: {}", email);
-            return false;
-        }
-        if (!verifyChecking.verifyPhoneNumber(staffPhone)) {
-            logger.warn("Invalid phone number format: {}", staffPhone);
-            return false;
-        }
-        if (checkStaffID(staffId)) {
-            logger.warn("StaffID {} already exists", staffId);
-            return false;
-        }
-
-        String sql = "INSERT INTO Staff (StaffID, LastName, MiddleName, FullName, StaffEmail, StaffPhone) VALUES (?, ?, ?, ?, ?, ?)";
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
-            logger.debug("Inserting staff: StaffID={}, Email={}, LastName={}, MiddleName={}, Phone={}",
-                    staffId, email, lastName, middleName, staffPhone);
-            ps.setString(1, staffId);
-            ps.setString(2, lastName);
-            ps.setString(3, middleName);
-            ps.setString(4, lastName + " " + middleName);
-            ps.setString(5, normalizationService.normaliizationEmail(email));
-            ps.setString(6, staffPhone);
-            int rowsAffected = ps.executeUpdate();
-            logger.info("Staff added successfully: StaffID={}", staffId);
-            return rowsAffected > 0;
+    /**
+     * Retrieves a staff member by StaffEmail.
+     */
+    public Staff getStaffByEmail(String email) {
+        String query = "SELECT * FROM Staff WHERE StaffEmail = ?";
+        try (PreparedStatement statement = connection.prepareStatement(query)) {
+            statement.setString(1, email);
+            ResultSet resultSet = statement.executeQuery();
+            return resultMap(resultSet);
         } catch (SQLException e) {
-            logger.error("Error adding staff with StaffID={}: {}", staffId, e.getMessage(), e);
-            return false;
+            logger.error("Error retrieving staff by email: {}", email, e);
         }
+        return null;
     }
 
-    public Staff resultMap(ResultSet rs, Staff staff) throws SQLException {
-        staff.setStaffId(rs.getString("StaffID"));
-        staff.setStaffEmail(rs.getString("StaffEmail"));
-        staff.setLastName(rs.getString("LastName"));
-        staff.setMiddleName(rs.getString("MiddleName"));
-        staff.setFullName(rs.getString("FullName"));
-        staff.setStaffPhone(rs.getString("StaffPhone"));
-        return staff;
+    /**
+     * Retrieves all staff members.
+     */
+    public List<Staff> getAllStaff() {
+        List<Staff> staffList = new ArrayList<>();
+        String query = "SELECT * FROM Staff";
+        try (PreparedStatement statement = connection.prepareStatement(query)) {
+            ResultSet resultSet = statement.executeQuery();
+            while (resultSet.next()) {
+                Staff staff = resultMap(resultSet);
+                if (staff != null) {
+                    staffList.add(staff);
+                    resultSet.relative(-1); // Move back to read the next record
+                }
+            }
+        } catch (SQLException e) {
+            logger.error("Error retrieving all staff", e);
+        }
+        return staffList;
+    }
+
+    /**
+     * Retrieves staff members by status.
+     */
+    public List<Staff> getStaffByStatus(int status) {
+        List<Staff> staffList = new ArrayList<>();
+        String query = "SELECT * FROM Staff WHERE StaffStatus = ?";
+        try (PreparedStatement statement = connection.prepareStatement(query)) {
+            statement.setInt(1, status);
+            ResultSet resultSet = statement.executeQuery();
+            while (resultSet.next()) {
+                Staff staff = resultMap(resultSet);
+                if (staff != null) {
+                    staffList.add(staff);
+                    resultSet.relative(-1); // Move back to read the next record
+                }
+            }
+        } catch (SQLException e) {
+            logger.error("Error retrieving staff by status: {}", status, e);
+        }
+        return staffList;
+    }
+
+    /**
+     * Creates a new staff member.
+     */
+    public boolean createStaff(Staff staff) {
+        String query = "INSERT INTO Staff (StaffID, StaffName, StaffEmail, StaffPhone, StaffStatus) VALUES (?, ?, ?, ?, ?)";
+        try (PreparedStatement statement = connection.prepareStatement(query)) {
+            statement.setString(1, staff.getStaffID());
+            statement.setString(2, staff.getStaffName());
+            statement.setString(3, staff.getStaffEmail());
+            statement.setString(4, staff.getStaffPhone());
+            statement.setInt(5, staff.getStaffStatus());
+
+            int rowsAffected = statement.executeUpdate();
+            return rowsAffected > 0;
+        } catch (SQLException e) {
+            logger.error("Error creating staff: {}", staff.getStaffID(), e);
+        }
+        return false;
+    }
+
+    /**
+     * Updates an existing staff member.
+     */
+    public boolean updateStaff(Staff staff) {
+        String query = "UPDATE Staff SET StaffName = ?, StaffEmail = ?, StaffPhone = ?, StaffStatus = ? WHERE StaffID = ?";
+        try (PreparedStatement statement = connection.prepareStatement(query)) {
+            statement.setString(1, staff.getStaffName());
+            statement.setString(2, staff.getStaffEmail());
+            statement.setString(3, staff.getStaffPhone());
+            statement.setInt(4, staff.getStaffStatus());
+            statement.setString(5, staff.getStaffID());
+
+            int rowsAffected = statement.executeUpdate();
+            return rowsAffected > 0;
+        } catch (SQLException e) {
+            logger.error("Error updating staff: {}", staff.getStaffID(), e);
+        }
+        return false;
+    }
+
+    /**
+     * Deletes a staff member by StaffID.
+     */
+    public boolean deleteStaff(String staffId) {
+        String query = "DELETE FROM Staff WHERE StaffID = ?";
+        try (PreparedStatement statement = connection.prepareStatement(query)) {
+            statement.setString(1, staffId);
+            int rowsAffected = statement.executeUpdate();
+            return rowsAffected > 0;
+        } catch (SQLException e) {
+            logger.error("Error deleting staff: {}", staffId, e);
+        }
+        return false;
     }
 
     public static void main(String[] args) {
         StaffDAO staffDAO = new StaffDAO();
-        System.out.println(staffDAO.getStaffByEmail("uiniacad.dev@gmail.com"));
+        String staffId = "STA001";
+        Staff staff = staffDAO.getStaffById(staffId);
+        if (staff != null) {
+            System.out.println("Staff Name: " + staff.getStaffName());
+        } else {
+            System.out.println("No staff found with ID: " + staffId);
+        }
     }
 }
