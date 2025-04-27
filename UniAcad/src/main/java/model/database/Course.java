@@ -26,4 +26,8 @@ public class Course {
     @Column(name = "CourseStatus", nullable = false)
     private Boolean courseStatus = false;
 
+
+    public void setCourseID(int courseID) {
+        this.id = courseID;
+    }
 }

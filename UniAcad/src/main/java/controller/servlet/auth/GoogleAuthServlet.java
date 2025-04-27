@@ -17,6 +17,7 @@ import java.io.IOException;
 @WebServlet(name = "GoogleAuthServlet", value = "/google-oauth")
 public class GoogleAuthServlet extends HttpServlet {
     private static final Logger logger = LoggerFactory.getLogger(GoogleAuthServlet.class);
+    private static final String LOGIN_PAGE = "Login.html"; // Đặt trong WEB-INF để bảo mật
 
     /**
      * Handle GET requests by forwarding to Login.html.
@@ -24,8 +25,13 @@ public class GoogleAuthServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        logger.debug("Forwarding to Login.html for /google-oauth");
-        request.getRequestDispatcher("/Login.html").forward(request, response);
+        logger.debug("Forwarding to {} for /google-oauth", LOGIN_PAGE);
+        try {
+            request.getRequestDispatcher(LOGIN_PAGE).forward(request, response);
+        } catch (ServletException | IOException e) {
+            logger.error("Error forwarding to {}: {}", LOGIN_PAGE, e.getMessage(), e);
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Unable to load login page");
+        }
     }
 
     /**
