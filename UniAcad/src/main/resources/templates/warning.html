@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Academic Warning Notification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f6f8fa;
+            margin: 0;
+            padding: 20px;
+        }
+        .email-container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 30px;
+            max-width: 600px;
+            margin: auto;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .email-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .email-header h1 {
+            color: #d9534f;
+        }
+        .email-body {
+            color: #333;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+        .warning-details {
+            background-color: #f2dede;
+            padding: 20px;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+        .warning-details p {
+            margin: 5px 0;
+        }
+        .footer {
+            font-size: 12px;
+            color: #777;
+            text-align: center;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+<div class="email-container">
+    <div class="email-header">
+        <h1>Academic Warning</h1>
+    </div>
+
+    <div class="email-body">
+        <p>Dear <strong th:text="${name}">Student Name</strong>,</p>
+
+        <p>We would like to inform you about an academic issue regarding your performance in the subject <strong th:text="${subject}">Subject Name</strong>.</p>
+
+        <div class="warning-details">
+            <p><strong>Warning Type:</strong> <span th:text="${warningType}">High Absence Warning</span></p>
+            <p><strong>Absent Rate:</strong> <span th:text="${absentRate}">40%</span></p>
+            <p><strong>Current Mark:</strong> <span th:text="${mark}">5.5</span></p>
+        </div>
+
+        <p>Please take immediate action to improve your attendance and academic performance to avoid further consequences.</p>
+
+        <p>If you have any questions, please contact your academic advisor as soon as possible.</p>
+
+        <p>Best regards,<br>UniAcad Academic Affairs</p>
+    </div>
+
+    <div class="footer">
+        © 2025 UniAcad University. All rights reserved.
+    </div>
+</div>
+</body>
+</html>

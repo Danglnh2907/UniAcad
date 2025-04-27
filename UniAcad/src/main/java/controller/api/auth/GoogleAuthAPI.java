@@ -47,8 +47,8 @@ public class GoogleAuthAPI extends HttpServlet {
     private static final HttpTransport HTTP_TRANSPORT = new NetHttpTransport();
     private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
     private static final String USERINFO_ENDPOINT = "https://www.googleapis.com/oauth2/v3/userinfo";
-    private AuthorizationCodeFlow flow;
-    private Gson gson;
+    private static AuthorizationCodeFlow flow;
+    private static Gson gson;
 
     @Override
     public void init() throws ServletException {

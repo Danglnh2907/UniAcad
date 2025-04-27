@@ -1,6 +1,7 @@
 package util.service.email;
 
 import dao.StudentDAO;
+import model.datasupport.WarningInfo;
 import io.github.cdimascio.dotenv.Dotenv;
 import jakarta.servlet.ServletContext;
 import org.slf4j.Logger;
@@ -11,20 +12,14 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * A service for sending email templates, specifically welcome emails to students.
- * Uses MailService for email delivery and StudentDAO for retrieving student information.
+ * Service to send email templates like Welcome emails and Warning emails.
  */
 public class EmailTemplateService {
     private static final Logger logger = LoggerFactory.getLogger(EmailTemplateService.class);
     private final MailService mailService;
     private final StudentDAO studentDAO;
-    private String appURL;
+    private final String appURL;
 
-    /**
-     * Constructor that initializes EmailTemplateService with a ServletContext.
-     *
-     * @param context the ServletContext for accessing web application resources
-     */
     public EmailTemplateService(ServletContext context) {
         this.mailService = new MailService(context);
         this.studentDAO = new StudentDAO();
@@ -32,104 +27,120 @@ public class EmailTemplateService {
                 .filename("save.env")
                 .ignoreIfMissing()
                 .load();
-        appURL = dotenv.get("APP_BASE_URL");
+        this.appURL = dotenv.get("APP_BASE_URL", "http://localhost:9090/UniAcad_war");
     }
 
     /**
-     * Sends welcome emails to a list of student emails using the "welcome" template.
-     * Each email includes the student's full name and a unique verification token.
-     *
-     * @param emails a list of student email addresses
-     * @return a map of failed email addresses to their failure reasons; empty if all emails are sent successfully
-     * @throws IOException if the template is invalid or resources cannot be loaded
-     * @throws IllegalArgumentException if the email list is null or empty
+     * Send Welcome Emails
      */
     public Map<String, String> sendWelcomeEmails(List<String> emails) throws IOException {
         if (emails == null || emails.isEmpty()) {
             throw new IllegalArgumentException("Email list cannot be null or empty");
         }
 
-        // Map of email to template variables (name, token, verificationLink)
         Map<String, Map<String, Object>> variables = new HashMap<>();
         AtomicInteger tokenCounter = new AtomicInteger(1);
 
-        // Process each email
         for (String email : emails) {
-            // Check if email exists in Student table
             if (!studentDAO.checkEmailExists(email)) {
                 logger.warn("Skipping email {}: not found in Student table", email);
                 continue;
             }
 
-            // Get student name
             String fullName = studentDAO.getNameByEmail(email);
-            if (fullName == null || fullName.trim().isEmpty()) {
+            if (fullName == null || fullName.isBlank()) {
                 logger.warn("Skipping email {}: could not retrieve student name", email);
                 continue;
             }
 
-            // Generate unique token (simple counter-based for demo; use UUID in production)
             String token = "WELCOME-" + tokenCounter.getAndIncrement() + "-" + UUID.randomUUID().toString().substring(0, 8);
             String verificationLink = appURL + "/verify?token=" + token;
 
-            // Add variables for this email
-            Map<String, Object> emailVariables = new HashMap<>();
-            emailVariables.put("name", fullName);
-            emailVariables.put("token", token);
-            emailVariables.put("verificationLink", verificationLink);
-            variables.put(email, emailVariables);
+            Map<String, Object> emailVars = new HashMap<>();
+            emailVars.put("name", fullName);
+            emailVars.put("token", token);
+            emailVars.put("verificationLink", verificationLink);
 
-            logger.debug("Prepared welcome email for {}: name={}, token={}", email, fullName, token);
+            variables.put(email, emailVars);
         }
 
         if (variables.isEmpty()) {
-            logger.error("No valid recipients for welcome emails");
-            return Map.of("error", "No valid student emails provided");
+            logger.error("No valid students found to send welcome emails");
+            return Map.of("error", "No valid student emails found");
         }
 
-        // Send emails using MailService
         Map<String, String> failedRecipients = mailService.sendPersonalized(
-                "welcome", // Template name
-                "Welcome to UniAcad!", // Email subject
+                "welcome",
+                "Welcome to UniAcad!",
                 variables,
-                null, // No inline images
-                null, // No attachments
-                10 // Batch size
+                null,
+                null,
+                10
         );
 
         if (failedRecipients.isEmpty()) {
-            logger.info("Successfully sent welcome emails to {} recipients", variables.size());
+            logger.info("Welcome emails sent successfully to {} recipients", variables.size());
         } else {
-            logger.warn("Failed to send welcome emails to {} recipients: {}", failedRecipients.size(), failedRecipients);
+            logger.warn("Some welcome emails failed: {}", failedRecipients);
         }
 
         return failedRecipients;
     }
 
     /**
-     * Shuts down the underlying MailService, releasing resources.
+     * Send Academic Warning Emails
      */
-    public void shutdown() {
-        mailService.shutdown();
+    public Map<String, String> sendWarningEmails(List<WarningInfo> warningInfos) throws IOException {
+        if (warningInfos == null || warningInfos.isEmpty()) {
+            throw new IllegalArgumentException("Warning list cannot be null or empty");
+        }
+
+        Map<String, Map<String, Object>> variables = new HashMap<>();
+
+        for (WarningInfo warning : warningInfos) {
+            String email = studentDAO.getEmailById(warning.getStudentId());
+            if (email == null || email.isBlank()) {
+                logger.warn("No email found for StudentID: {}", warning.getStudentId());
+                continue;
+            }
+
+            Map<String, Object> emailVars = new HashMap<>();
+            emailVars.put("name", warning.getStudentName());
+            emailVars.put("subject", warning.getSubjectName());
+            emailVars.put("warningType", warning.getWarningType());
+            emailVars.put("absentRate", String.format("%.2f%%", warning.getAbsentRate() * 100));
+            emailVars.put("mark", String.format("%.1f", warning.getMark()));
+
+            variables.put(email, emailVars);
+        }
+
+        if (variables.isEmpty()) {
+            logger.error("No valid students to send warning emails");
+            return Map.of("error", "No valid student warnings");
+        }
+
+        Map<String, String> failedRecipients = mailService.sendPersonalized(
+                "warning",
+                "Academic Warning Notification",
+                variables,
+                null,
+                null,
+                10
+        );
+
+        if (failedRecipients.isEmpty()) {
+            logger.info("Warning emails sent successfully to {} students", variables.size());
+        } else {
+            logger.warn("Some warning emails failed: {}", failedRecipients);
+        }
+
+        return failedRecipients;
     }
 
     /**
-     * Demo main method for testing the EmailTemplateService.
-     *
-     * @param args command-line arguments (not used)
+     * Shutdown Mail Service
      */
-    public static void main(String[] args) {
-        try {
-            EmailTemplateService emailService = new EmailTemplateService(null);
-            List<String> emails = List.of(
-                    "khainhce182286@fpt.edu.vn",
-                    "khai1234sd@gmail.com"
-            );
-            emailService.sendWelcomeEmails(emails);
-            emailService.shutdown();
-        } catch (IOException e) {
-            logger.error("Failed to send welcome emails", e);
-            System.out.println("Error: " + e.getMessage());
-        }
+    public void shutdown() {
+        mailService.shutdown();
     }
 }
