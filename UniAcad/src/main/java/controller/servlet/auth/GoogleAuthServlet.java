@@ -12,20 +12,20 @@ import java.io.IOException;
 
 /**
  * Servlet for handling login page requests at /google-oauth.
- * Forwards to index1.html, which contains the Google OAuth login button.
+ * Forwards to Login.html, which contains the Google OAuth login button.
  */
 @WebServlet(name = "GoogleAuthServlet", value = "/google-oauth")
 public class GoogleAuthServlet extends HttpServlet {
     private static final Logger logger = LoggerFactory.getLogger(GoogleAuthServlet.class);
 
     /**
-     * Handle GET requests by forwarding to index1.html.
+     * Handle GET requests by forwarding to Login.html.
      */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        logger.debug("Forwarding to index1.html for /google-oauth");
-        request.getRequestDispatcher("/index1.html").forward(request, response);
+        logger.debug("Forwarding to Login.html for /google-oauth");
+        request.getRequestDispatcher("/Login.html").forward(request, response);
     }
 
     /**
