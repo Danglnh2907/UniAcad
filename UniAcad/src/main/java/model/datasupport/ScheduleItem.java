@@ -1,4 +1,8 @@
 package model.datasupport;
+
+import java.sql.Time;
+import java.sql.Timestamp;
+
 public class ScheduleItem {
     private String subjectName;
     private String roomId;
@@ -12,6 +16,13 @@ public class ScheduleItem {
         this.startTime = startTime;
         this.duration = duration;
         this.attendStatus = attendStatus;
+    }
+
+    public ScheduleItem(String subjectName, String roomId, Timestamp startTime, Time duration) {
+        this.subjectName = subjectName;
+        this.roomId = roomId;
+        this.startTime = startTime;
+        this.duration = duration;
     }
 
     // Getter và Setter
