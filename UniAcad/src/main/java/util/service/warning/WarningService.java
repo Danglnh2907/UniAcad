@@ -77,7 +77,6 @@ public class WarningService {
         } catch (Exception e) {
             logger.error("Error fetching warnings: {}", e.getMessage(), e);
         }
-
         return warnings;
     }
 
@@ -94,5 +93,4 @@ public class WarningService {
         }
         return null; // Không cảnh báo
     }
-
 }
