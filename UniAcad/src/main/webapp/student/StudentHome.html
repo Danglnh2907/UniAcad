@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Home - UniAcad</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col">
+
+<!-- Header -->
+<header class="bg-white shadow p-4 flex justify-between items-center">
+    <h1 class="text-2xl font-bold text-indigo-700">UniAcad</h1>
+    <button onclick="logout()" class="text-sm bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md">
+        Logout
+    </button>
+</header>
+
+<!-- Main content -->
+<main class="flex-1 flex flex-col items-center justify-center text-center p-6">
+    <h2 id="greeting" class="text-3xl font-bold mb-4 text-indigo-800">Hello, Student!</h2>
+    <p class="text-gray-600 mb-8">Welcome to your dashboard. Choose what you want to do next.</p>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-3xl">
+        <a href="/UniAcad/student/profile" class="bg-white p-6 rounded-lg shadow hover:shadow-lg transition transform hover:-translate-y-1">
+            <h3 class="text-xl font-semibold mb-2 text-indigo-600">Profile</h3>
+            <p class="text-gray-500">View and edit your personal information.</p>
+        </a>
+
+        <a href="/UniAcad/student/timetable" class="bg-white p-6 rounded-lg shadow hover:shadow-lg transition transform hover:-translate-y-1">
+            <h3 class="text-xl font-semibold mb-2 text-indigo-600">Weekly Timetable</h3>
+            <p class="text-gray-500">Check your schedule for this week.</p>
+        </a>
+
+        <a href="/UniAcad/student/fee" class="bg-white p-6 rounded-lg shadow hover:shadow-lg transition transform hover:-translate-y-1">
+            <h3 class="text-xl font-semibold mb-2 text-indigo-600">Fee</h3>
+            <p class="text-gray-500">View and pay your tuition fees.</p>
+        </a>
+
+        <a href="/UniAcad/student/grades" class="bg-white p-6 rounded-lg shadow hover:shadow-lg transition transform hover:-translate-y-1">
+            <h3 class="text-xl font-semibold mb-2 text-indigo-600">Grades</h3>
+            <p class="text-gray-500">See your exam results and GPA.</p>
+        </a>
+    </div>
+</main>
+
+<!-- Footer -->
+<footer class="text-center p-4 text-gray-400 text-sm">
+    © 2025 UniAcad. All rights reserved.
+</footer>
+
+<script>
+    function updateGreeting() {
+        const now = new Date();
+        const hour = now.getHours();
+        let greetingText = "Hello";
+
+        if (hour >= 5 && hour < 12) {
+            greetingText = "Good Morning";
+        } else if (hour >= 12 && hour < 18) {
+            greetingText = "Good Afternoon";
+        } else {
+            greetingText = "Good Evening";
+        }
+
+        document.getElementById('greeting').innerText = greetingText + ", Student!";
+    }
+
+    function logout() {
+        // logout logic sau này
+        alert("Logging out...");
+        window.location.href = "/UniAcad/login.html";
+    }
+
+    updateGreeting();
+</script>
+
+</body>
+</html>
