@@ -1,11 +1,15 @@
 package model.datasupport;
 
+import lombok.Getter;
+
+@Getter
 public class MarkReport {
-    private String studentId;
-    private String studentName;
-    private String subjectName;
-    private double mark;
-    private String status; // "Pass" or "Fail"
+    // Getter & Setter
+    private final String studentId;
+    private final String studentName;
+    private final String subjectName;
+    private final double mark;
+    private final String status; // "Pass" or "Fail"
 
     public MarkReport(String studentId, String studentName, String subjectName, double mark, String status) {
         this.studentId = studentId;
@@ -15,10 +19,4 @@ public class MarkReport {
         this.status = status;
     }
 
-    // Getter & Setter
-    public String getStudentId() { return studentId; }
-    public String getStudentName() { return studentName; }
-    public String getSubjectName() { return subjectName; }
-    public double getMark() { return mark; }
-    public String getStatus() { return status; }
 }
