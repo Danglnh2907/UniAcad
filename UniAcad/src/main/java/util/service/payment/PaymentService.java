@@ -2,33 +2,38 @@ package util.service.payment;
 
 import dao.FeeDAO;
 import dao.PaymentDAO;
-import jakarta.persistence.EntityManager;
 import model.database.Fee;
 import model.database.Payment;
+import util.service.database.DBContext;
 
 import java.math.BigDecimal;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.time.Instant;
 
 public class PaymentService {
 
     private final FeeDAO feeDAO;
     private final PaymentDAO paymentDAO;
-    private final EntityManager entityManager;
 
-    public PaymentService(EntityManager entityManager) {
-        this.entityManager = entityManager;
-        this.feeDAO = new FeeDAO(entityManager);
-        this.paymentDAO = new PaymentDAO(entityManager);
+    public PaymentService() {
+        this.feeDAO = new FeeDAO();
+        this.paymentDAO = new PaymentDAO();
     }
 
     public void payFee(Integer feeId, BigDecimal amountToPay) {
-        entityManager.getTransaction().begin();
+        Connection conn = null;
         try {
+            conn = DBContext.getConnection();
+            conn.setAutoCommit(false); // Bắt đầu transaction
+
+            // 1. Find Fee theo feeId
             Fee fee = feeDAO.findById(feeId);
             if (fee == null) {
                 throw new IllegalArgumentException("Fee not found for ID: " + feeId);
             }
 
+            // 2. Check trạng thái và số tiền
             if (fee.getFeeStatus() != 0) {
                 throw new IllegalStateException("Fee has already been paid.");
             }
@@ -37,6 +42,7 @@ public class PaymentService {
                 throw new IllegalArgumentException("Payment amount does not match the required fee amount.");
             }
 
+            // 3. Insert Payment mới
             Payment payment = new Payment();
             payment.setFeeID(fee);
             payment.setAmountPaid(amountToPay);
@@ -45,13 +51,29 @@ public class PaymentService {
 
             paymentDAO.save(payment);
 
-            fee.setFeeStatus(1); // cập nhật Fee thành đã thanh toán
+            // 4. Update Fee thành đã thanh toán
+            fee.setFeeStatus(1);
             feeDAO.update(fee);
 
-            entityManager.getTransaction().commit();
+            conn.commit(); // Commit transaction
         } catch (Exception e) {
-            entityManager.getTransaction().rollback();
-            throw e;
+            if (conn != null) {
+                try {
+                    conn.rollback();
+                } catch (SQLException ex) {
+                    throw new RuntimeException("Error during rollback", ex);
+                }
+            }
+            throw new RuntimeException("Error processing payment", e);
+        } finally {
+            if (conn != null) {
+                try {
+                    conn.setAutoCommit(true);
+                    conn.close();
+                } catch (SQLException ex) {
+                    throw new RuntimeException("Error closing connection", ex);
+                }
+            }
         }
     }
 }

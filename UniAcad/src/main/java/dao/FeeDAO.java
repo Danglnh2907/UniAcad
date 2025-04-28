@@ -1,42 +1,118 @@
 package dao;
 
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.EntityTransaction;
 import model.database.Fee;
+import util.service.database.DBContext;
+
+import java.sql.*;
+import java.math.BigDecimal;
+import java.time.Instant;
 
 public class FeeDAO {
 
-    private final EntityManager entityManager;
-
-    public FeeDAO(EntityManager entityManager) {
-        this.entityManager = entityManager;
-    }
-
     public Fee findById(Integer id) {
-        return entityManager.find(Fee.class, id);
+        String sql = "SELECT * FROM Fee WHERE FeeID = ?";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return mapResultSetToFee(rs);
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error finding Fee by ID", e);
+        }
+        return null;
     }
 
     public void save(Fee fee) {
-        EntityTransaction transaction = entityManager.getTransaction();
-        try {
-            transaction.begin();
-            entityManager.persist(fee);
-            transaction.commit();
-        } catch (Exception e) {
-            transaction.rollback();
-            throw e;
+        String sql = "INSERT INTO Fee (StudentID, TermID, Amount, DueDate, FeeStatus) VALUES (?, ?, ?, ?, ?)";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+
+            ps.setString(1, fee.getStudentID().getStudentID()); // Assuming getId() returns String
+            if (fee.getTermID() != null) {
+                ps.setString(2, fee.getTermID().getTermID());
+            } else {
+                ps.setNull(2, Types.CHAR);
+            }
+            ps.setBigDecimal(3, fee.getAmount());
+            if (fee.getDueDate() != null) {
+                ps.setTimestamp(4, Timestamp.from(fee.getDueDate()));
+            } else {
+                ps.setNull(4, Types.TIMESTAMP);
+            }
+            ps.setInt(5, fee.getFeeStatus());
+
+            ps.executeUpdate();
+
+            try (ResultSet generatedKeys = ps.getGeneratedKeys()) {
+                if (generatedKeys.next()) {
+                    fee.setId(generatedKeys.getInt(1)); // set auto-generated ID back into entity
+                }
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Error saving Fee", e);
         }
     }
 
     public void update(Fee fee) {
-        EntityTransaction transaction = entityManager.getTransaction();
-        try {
-            transaction.begin();
-            entityManager.merge(fee);
-            transaction.commit();
-        } catch (Exception e) {
-            transaction.rollback();
-            throw e;
+        String sql = "UPDATE Fee SET StudentID = ?, TermID = ?, Amount = ?, DueDate = ?, FeeStatus = ? WHERE FeeID = ?";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, fee.getStudentID().getStudentID());
+            if (fee.getTermID() != null) {
+                ps.setString(2, fee.getTermID().getTermID());
+            } else {
+                ps.setNull(2, Types.CHAR);
+            }
+            ps.setBigDecimal(3, fee.getAmount());
+            if (fee.getDueDate() != null) {
+                ps.setTimestamp(4, Timestamp.from(fee.getDueDate()));
+            } else {
+                ps.setNull(4, Types.TIMESTAMP);
+            }
+            ps.setInt(5, fee.getFeeStatus());
+            ps.setInt(6, fee.getId());
+
+            ps.executeUpdate();
+
+        } catch (SQLException e) {
+            throw new RuntimeException("Error updating Fee", e);
         }
+    }
+
+    public Fee findUnpaidFeeByStudentId(String studentId) {
+        String sql = "SELECT * FROM Fee WHERE StudentID = ? AND FeeStatus = 0";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, studentId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return mapResultSetToFee(rs);
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error finding unpaid Fee by StudentID", e);
+        }
+        return null;
+    }
+
+    private Fee mapResultSetToFee(ResultSet rs) throws SQLException {
+        Fee fee = new Fee();
+        fee.setId(rs.getInt("FeeID"));
+        // Fee.StudentID và Fee.TermID cần tự set object Student/Term nếu cần. (Chỗ này tao để null trước nhé.)
+        fee.setAmount(rs.getBigDecimal("Amount"));
+        Timestamp dueDateTimestamp = rs.getTimestamp("DueDate");
+        if (dueDateTimestamp != null) {
+            fee.setDueDate(dueDateTimestamp.toInstant());
+        }
+        fee.setFeeStatus(rs.getInt("FeeStatus"));
+        return fee;
     }
 }
