@@ -11,69 +11,45 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
 
+/**
+ * PaymentService handles the business logic for processing student fee payments.
+ */
 public class PaymentService {
 
-    private final FeeDAO feeDAO;
-    private final PaymentDAO paymentDAO;
-
-    public PaymentService() {
-        this.feeDAO = new FeeDAO();
-        this.paymentDAO = new PaymentDAO();
+    public static void main(String[] args) {
+        PaymentService paymentService = new PaymentService();
+        try {
+            paymentService.payFee(3, BigDecimal.valueOf(2000));
+            System.out.println("Payment processed successfully.");
+        } catch (Exception e) {
+            System.err.println("Error processing payment: " + e.getMessage());
+        }
     }
 
-    public void payFee(Integer feeId, BigDecimal amountToPay) {
-        Connection conn = null;
-        try {
-            conn = DBContext.getConnection();
-            conn.setAutoCommit(false); // Bắt đầu transaction
+    public void payFee(int feeId, BigDecimal amountPaid) {
+        FeeDAO feeDAO = new FeeDAO();
+        PaymentDAO paymentDAO = new PaymentDAO();
 
-            // 1. Find Fee theo feeId
+        try (Connection conn = DBContext.getConnection()) {
+            // 1. Find the fee by ID
             Fee fee = feeDAO.findById(feeId);
             if (fee == null) {
                 throw new IllegalArgumentException("Fee not found for ID: " + feeId);
             }
-
-            // 2. Check trạng thái và số tiền
-            if (fee.getFeeStatus() != 0) {
-                throw new IllegalStateException("Fee has already been paid.");
-            }
-
-            if (fee.getAmount().compareTo(amountToPay) != 0) {
-                throw new IllegalArgumentException("Payment amount does not match the required fee amount.");
-            }
-
-            // 3. Insert Payment mới
+            // 2. Create a new Payment object
             Payment payment = new Payment();
             payment.setFeeID(fee);
-            payment.setAmountPaid(amountToPay);
+            payment.setAmountPaid(amountPaid);
             payment.setPaymentDate(Instant.now());
-            payment.setPaymentStatus(1); // 1 = thành công
-
+            payment.setPaymentStatus(1); // 1 means payment successful
+            // 3. Save the payment
             paymentDAO.save(payment);
 
-            // 4. Update Fee thành đã thanh toán
-            fee.setFeeStatus(1);
+            // 4. Update the fee status
+            fee.setFeeStatus(1); // 1 means fee paid
             feeDAO.update(fee);
-
-            conn.commit(); // Commit transaction
         } catch (Exception e) {
-            if (conn != null) {
-                try {
-                    conn.rollback();
-                } catch (SQLException ex) {
-                    throw new RuntimeException("Error during rollback", ex);
-                }
-            }
             throw new RuntimeException("Error processing payment", e);
-        } finally {
-            if (conn != null) {
-                try {
-                    conn.setAutoCommit(true);
-                    conn.close();
-                } catch (SQLException ex) {
-                    throw new RuntimeException("Error closing connection", ex);
-                }
-            }
         }
     }
 }

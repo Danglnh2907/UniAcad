@@ -32,7 +32,7 @@ public class MarkReportDAO extends DBContext {
             LEFT JOIN GradeReport gr ON gr.StudentID = st.StudentID AND gr.SubjectID = su.SubjectID
             """;
 
-        try (PreparedStatement ps = connection.prepareStatement(sql);
+        try (PreparedStatement ps = getConnection().prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
 
             while (rs.next()) {
@@ -72,7 +72,7 @@ public class MarkReportDAO extends DBContext {
             WHERE st.StudentEmail = ?
             """;
 
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+        try (PreparedStatement ps = getConnection().prepareStatement(sql)) {
             ps.setString(1, email);
             ResultSet rs = ps.executeQuery();
 

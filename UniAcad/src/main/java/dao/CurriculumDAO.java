@@ -22,7 +22,7 @@ public class CurriculumDAO extends DBContext {
      */
     public boolean checkCurriculumExists(String curriculumId) {
         String query = "SELECT COUNT(*) FROM Curriculum WHERE CurriculumID = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, curriculumId);
             ResultSet resultSet = statement.executeQuery();
             if (resultSet.next()) {
@@ -59,7 +59,7 @@ public class CurriculumDAO extends DBContext {
      */
     public Curriculum getCurriculumById(String curriculumId) {
         String query = "SELECT * FROM Curriculum WHERE CurriculumID = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, curriculumId);
             ResultSet resultSet = statement.executeQuery();
             return resultMap(resultSet);
@@ -75,7 +75,7 @@ public class CurriculumDAO extends DBContext {
     public List<Curriculum> getAllCurricula() {
         List<Curriculum> curricula = new ArrayList<>();
         String query = "SELECT * FROM Curriculum";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             ResultSet resultSet = statement.executeQuery();
             while (resultSet.next()) {
                 Curriculum curriculum = resultMap(resultSet);
@@ -96,7 +96,7 @@ public class CurriculumDAO extends DBContext {
     public List<Curriculum> getCurriculaByMajor(String majorId) {
         List<Curriculum> curricula = new ArrayList<>();
         String query = "SELECT * FROM Curriculum WHERE MajorID = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, majorId);
             ResultSet resultSet = statement.executeQuery();
             while (resultSet.next()) {
@@ -117,7 +117,7 @@ public class CurriculumDAO extends DBContext {
      */
     public boolean createCurriculum(Curriculum curriculum) {
         String query = "INSERT INTO Curriculum (CurriculumID, CurriculumName, MajorID) VALUES (?, ?, ?)";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, curriculum.getCurriculumID());
             statement.setString(2, curriculum.getCurriculumName());
             statement.setString(3, curriculum.getMajorID().getMajorID());
@@ -135,7 +135,7 @@ public class CurriculumDAO extends DBContext {
      */
     public boolean updateCurriculum(Curriculum curriculum) {
         String query = "UPDATE Curriculum SET CurriculumName = ?, MajorID = ? WHERE CurriculumID = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, curriculum.getCurriculumName());
             statement.setString(2, curriculum.getMajorID().getMajorID());
             statement.setString(3, curriculum.getCurriculumID());
@@ -153,7 +153,7 @@ public class CurriculumDAO extends DBContext {
      */
     public boolean deleteCurriculum(String curriculumId) {
         String query = "DELETE FROM Curriculum WHERE CurriculumID = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, curriculumId);
             int rowsAffected = statement.executeUpdate();
             return rowsAffected > 0;

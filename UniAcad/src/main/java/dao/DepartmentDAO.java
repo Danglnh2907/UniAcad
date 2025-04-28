@@ -21,7 +21,7 @@ public class DepartmentDAO extends DBContext {
      */
     public boolean checkDepartmentExists(String departmentId) {
         String query = "SELECT COUNT(*) FROM Department WHERE DepartmentID = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, departmentId);
             ResultSet resultSet = statement.executeQuery();
             if (resultSet.next()) {
@@ -53,7 +53,7 @@ public class DepartmentDAO extends DBContext {
      */
     public Department getDepartmentById(String departmentId) {
         String query = "SELECT * FROM Department WHERE DepartmentID = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, departmentId);
             ResultSet resultSet = statement.executeQuery();
             return resultMap(resultSet);
@@ -69,7 +69,7 @@ public class DepartmentDAO extends DBContext {
     public List<Department> getAllDepartments() {
         List<Department> departments = new ArrayList<>();
         String query = "SELECT * FROM Department";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             ResultSet resultSet = statement.executeQuery();
             while (resultSet.next()) {
                 Department department = resultMap(resultSet);
@@ -89,7 +89,7 @@ public class DepartmentDAO extends DBContext {
      */
     public boolean createDepartment(Department department) {
         String query = "INSERT INTO Department (DepartmentID, DepartmentName) VALUES (?, ?)";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, department.getDepartmentID());
             statement.setString(2, department.getDepartmentName());
 
@@ -106,7 +106,7 @@ public class DepartmentDAO extends DBContext {
      */
     public boolean updateDepartment(Department department) {
         String query = "UPDATE Department SET DepartmentName = ? WHERE DepartmentID = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, department.getDepartmentName());
             statement.setString(2, department.getDepartmentID());
 
@@ -123,7 +123,7 @@ public class DepartmentDAO extends DBContext {
      */
     public boolean deleteDepartment(String departmentId) {
         String query = "DELETE FROM Department WHERE DepartmentID = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, departmentId);
             int rowsAffected = statement.executeUpdate();
             return rowsAffected > 0;

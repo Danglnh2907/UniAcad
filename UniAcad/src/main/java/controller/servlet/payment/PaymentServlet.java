@@ -18,7 +18,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.math.BigDecimal;
 
-@WebServlet(name = "PaymentServlet", urlPatterns = {"/payment/payos_transfer_handler"})
+@WebServlet(name = "PaymentServlet", urlPatterns = {"/student/payment/payos_transfer_handler"})
 public class PaymentServlet extends HttpServlet {
 
     private final PayOS payOS;

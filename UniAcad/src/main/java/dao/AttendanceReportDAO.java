@@ -37,7 +37,7 @@ public class AttendanceReportDAO extends DBContext {
             GROUP BY st.StudentID, st.StudentName, su.SubjectName
             """;
 
-        try (PreparedStatement ps = connection.prepareStatement(sql);
+        try (PreparedStatement ps = getConnection().prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
 
             while (rs.next()) {
@@ -83,7 +83,7 @@ public class AttendanceReportDAO extends DBContext {
             GROUP BY st.StudentID, st.StudentName, su.SubjectName
             """;
 
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+        try (PreparedStatement ps = getConnection().prepareStatement(sql)) {
             ps.setString(1, email);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {

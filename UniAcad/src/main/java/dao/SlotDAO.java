@@ -77,7 +77,7 @@ public class SlotDAO extends DBContext {
     public List<Slot> getSlotsByCourse(int courseId) {
         List<Slot> slots = new ArrayList<>();
         String query = "SELECT * FROM Slot WHERE CourseID = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setInt(1, courseId);
             ResultSet resultSet = statement.executeQuery();
             while (resultSet.next()) {
@@ -104,7 +104,7 @@ public class SlotDAO extends DBContext {
                 "AND s.StartTime BETWEEN ? AND ? " +
                 "AND c.CourseStatus = 0 " +
                 "ORDER BY s.StartTime";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, studentId);
             statement.setString(2, startDate);
             statement.setString(3, endDate);

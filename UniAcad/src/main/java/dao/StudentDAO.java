@@ -19,7 +19,7 @@ public class StudentDAO extends DBContext {
 
     public boolean checkEmailExists(String email) {
         String query = "SELECT 1 FROM Student WHERE StudentEmail = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, email);
             try (ResultSet rs = statement.executeQuery()) {
                 return rs.next();
@@ -32,7 +32,7 @@ public class StudentDAO extends DBContext {
 
     public String getNameByEmail(String email) {
         String query = "SELECT StudentName FROM Student WHERE StudentEmail = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, email);
             try (ResultSet rs = statement.executeQuery()) {
                 if (rs.next()) return rs.getString("StudentName");
@@ -45,7 +45,7 @@ public class StudentDAO extends DBContext {
 
     public String getEmailById(String studentId) {
         String query = "SELECT StudentEmail FROM Student WHERE StudentID = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, studentId);
             try (ResultSet rs = statement.executeQuery()) {
                 if (rs.next()) return rs.getString("StudentEmail");
@@ -76,7 +76,7 @@ public class StudentDAO extends DBContext {
 
     public Student getStudentByEmail(String email) {
         String query = "SELECT * FROM Student WHERE StudentEmail = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, email);
             try (ResultSet rs = statement.executeQuery()) {
                 return rs.next() ? mapResult(rs) : null;
@@ -89,7 +89,7 @@ public class StudentDAO extends DBContext {
 
     public Student getStudentById(String studentId) {
         String query = "SELECT * FROM Student WHERE StudentID = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, studentId);
             try (ResultSet rs = statement.executeQuery()) {
                 return rs.next() ? mapResult(rs) : null;

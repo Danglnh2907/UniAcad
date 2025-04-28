@@ -1,11 +1,11 @@
 package dao;
 
 import model.database.Fee;
+import model.database.Student;
+import model.database.Term;
 import util.service.database.DBContext;
 
 import java.sql.*;
-import java.math.BigDecimal;
-import java.time.Instant;
 
 public class FeeDAO {
 
@@ -31,7 +31,7 @@ public class FeeDAO {
         try (Connection conn = DBContext.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
-            ps.setString(1, fee.getStudentID().getStudentID()); // Assuming getId() returns String
+            ps.setString(1, fee.getStudentID().getStudentID());
             if (fee.getTermID() != null) {
                 ps.setString(2, fee.getTermID().getTermID());
             } else {
@@ -49,10 +49,9 @@ public class FeeDAO {
 
             try (ResultSet generatedKeys = ps.getGeneratedKeys()) {
                 if (generatedKeys.next()) {
-                    fee.setId(generatedKeys.getInt(1)); // set auto-generated ID back into entity
+                    fee.setId(generatedKeys.getInt(1));
                 }
             }
-
         } catch (SQLException e) {
             throw new RuntimeException("Error saving Fee", e);
         }
@@ -79,7 +78,6 @@ public class FeeDAO {
             ps.setInt(6, fee.getId());
 
             ps.executeUpdate();
-
         } catch (SQLException e) {
             throw new RuntimeException("Error updating Fee", e);
         }
@@ -91,7 +89,6 @@ public class FeeDAO {
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, studentId);
-
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     return mapResultSetToFee(rs);
@@ -106,8 +103,17 @@ public class FeeDAO {
     private Fee mapResultSetToFee(ResultSet rs) throws SQLException {
         Fee fee = new Fee();
         fee.setId(rs.getInt("FeeID"));
-        // Fee.StudentID và Fee.TermID cần tự set object Student/Term nếu cần. (Chỗ này tao để null trước nhé.)
+
+        Student student = new Student();
+        student.setStudentID(rs.getString("StudentID"));
+        fee.setStudentID(student);
+
+        Term term = new Term();
+        term.setTermID(rs.getString("TermID"));
+        fee.setTermID(term);
+
         fee.setAmount(rs.getBigDecimal("Amount"));
+
         Timestamp dueDateTimestamp = rs.getTimestamp("DueDate");
         if (dueDateTimestamp != null) {
             fee.setDueDate(dueDateTimestamp.toInstant());

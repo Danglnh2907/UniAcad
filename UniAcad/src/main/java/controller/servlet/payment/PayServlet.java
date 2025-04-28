@@ -10,42 +10,22 @@ import java.io.IOException;
 
 /**
  * A custom Servlet for handling HTTP requests.
- * Mapped to /payservlet by default.
  */
-@WebServlet(
-    name = "PayServlet",
-    value = "/pay"
-)
+@WebServlet(name = "PayServlet", value = "/student/fee")
 public class PayServlet extends HttpServlet {
 
-    /**
-     * Initialize the servlet.
-     */
-    @Override
-    public void init() throws ServletException {
-    }
-
-    /**
-     * Handle GET requests.
-     */
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        request.getRequestDispatcher("PayHome.html").forward(request, response);
+        request.getRequestDispatcher("/student/PayHome.html").forward(request, response);
     }
 
-    /**
-     * Handle POST requests.
-     */
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        request.getRequestDispatcher("PayHome.html").forward(request, response);
+        response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED, "POST not supported.");
     }
 
-    /**
-     * Clean up resources.
-     */
     @Override
     public void destroy() {
     }

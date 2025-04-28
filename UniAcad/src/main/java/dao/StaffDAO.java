@@ -21,7 +21,7 @@ public class StaffDAO extends DBContext {
      */
     public boolean checkStaffExists(String staffId) {
         String query = "SELECT COUNT(*) FROM Staff WHERE StaffID = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, staffId);
             ResultSet resultSet = statement.executeQuery();
             if (resultSet.next()) {
@@ -38,7 +38,7 @@ public class StaffDAO extends DBContext {
      */
     public boolean checkEmailExists(String email) {
         String query = "SELECT COUNT(*) FROM Staff WHERE StaffEmail = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, email);
             ResultSet resultSet = statement.executeQuery();
             if (resultSet.next()) {
@@ -73,7 +73,7 @@ public class StaffDAO extends DBContext {
      */
     public Staff getStaffById(String staffId) {
         String query = "SELECT * FROM Staff WHERE StaffID = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, staffId);
             ResultSet resultSet = statement.executeQuery();
             return resultMap(resultSet);
@@ -88,7 +88,7 @@ public class StaffDAO extends DBContext {
      */
     public Staff getStaffByEmail(String email) {
         String query = "SELECT * FROM Staff WHERE StaffEmail = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, email);
             ResultSet resultSet = statement.executeQuery();
             return resultMap(resultSet);
@@ -104,7 +104,7 @@ public class StaffDAO extends DBContext {
     public List<Staff> getAllStaff() {
         List<Staff> staffList = new ArrayList<>();
         String query = "SELECT * FROM Staff";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             ResultSet resultSet = statement.executeQuery();
             while (resultSet.next()) {
                 Staff staff = resultMap(resultSet);
@@ -125,7 +125,7 @@ public class StaffDAO extends DBContext {
     public List<Staff> getStaffByStatus(int status) {
         List<Staff> staffList = new ArrayList<>();
         String query = "SELECT * FROM Staff WHERE StaffStatus = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setInt(1, status);
             ResultSet resultSet = statement.executeQuery();
             while (resultSet.next()) {
@@ -146,7 +146,7 @@ public class StaffDAO extends DBContext {
      */
     public boolean createStaff(Staff staff) {
         String query = "INSERT INTO Staff (StaffID, StaffName, StaffEmail, StaffPhone, StaffStatus) VALUES (?, ?, ?, ?, ?)";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, staff.getStaffID());
             statement.setString(2, staff.getStaffName());
             statement.setString(3, staff.getStaffEmail());
@@ -166,7 +166,7 @@ public class StaffDAO extends DBContext {
      */
     public boolean updateStaff(Staff staff) {
         String query = "UPDATE Staff SET StaffName = ?, StaffEmail = ?, StaffPhone = ?, StaffStatus = ? WHERE StaffID = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, staff.getStaffName());
             statement.setString(2, staff.getStaffEmail());
             statement.setString(3, staff.getStaffPhone());
@@ -186,7 +186,7 @@ public class StaffDAO extends DBContext {
      */
     public boolean deleteStaff(String staffId) {
         String query = "DELETE FROM Staff WHERE StaffID = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, staffId);
             int rowsAffected = statement.executeUpdate();
             return rowsAffected > 0;
