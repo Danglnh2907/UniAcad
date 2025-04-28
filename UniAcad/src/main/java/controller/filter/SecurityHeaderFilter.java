@@ -41,9 +41,9 @@ public class SecurityHeaderFilter implements Filter {
             logger.debug("Added X-Content-Type-Options: nosniff");
 
             // Content Security Policy (basic)
-            httpResponse.setHeader("Content-Security-Policy",
-                    "default-src 'self'; script-src 'self' https://apis.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self';");
-            logger.debug("Added Content-Security-Policy header");
+//            httpResponse.setHeader("Content-Security-Policy",
+//                    "default-src 'self'; script-src 'self' https://apis.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self';");
+//            logger.debug("Added Content-Security-Policy header");
         }
 
         chain.doFilter(request, response);

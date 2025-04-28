@@ -99,4 +99,15 @@ public class StudentDAO extends DBContext {
         }
         return null;
     }
+
+    public static void main(String[] args) {
+        StudentDAO studentDAO = new StudentDAO();
+        String email = "khai1234sd@gmail.com";
+        Student student = studentDAO.getStudentByEmail(email);
+        if (student != null) {
+            System.out.println("Student found: " + student.getStudentID());
+        } else {
+            System.out.println("No student found with email: " + email);
+        }
+    }
 }

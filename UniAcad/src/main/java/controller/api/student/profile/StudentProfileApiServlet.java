@@ -1,7 +1,7 @@
 package controller.api.student.profile;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
+import com.google.gson.*;
+import com.google.gson.reflect.TypeToken;
 import dao.StudentDAO;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -9,38 +9,54 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import model.database.Student;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.lang.reflect.Type;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 
 @WebServlet(name = "StudentProfileApiServlet", urlPatterns = {"/api/student/profile"})
 public class StudentProfileApiServlet extends HttpServlet {
+    private static final Logger logger = LoggerFactory.getLogger(StudentProfileApiServlet.class);
 
-    private final Gson gson = new Gson();
-    private final StudentDAO studentDAO = new StudentDAO(); // JDBC thuần nha
+    private final Gson gson;
+    private final StudentDAO studentDAO = new StudentDAO();
+
+    public StudentProfileApiServlet() {
+        gson = new GsonBuilder()
+                .registerTypeAdapter(LocalDate.class, (JsonSerializer<LocalDate>)
+                        (src, typeOfSrc, context) -> new JsonPrimitive(src.toString()))
+                .registerTypeAdapter(Instant.class, (JsonSerializer<Instant>)
+                        (src, typeOfSrc, context) -> new JsonPrimitive(src.toString()))
+                .registerTypeAdapter(LocalTime.class, (JsonSerializer<LocalTime>)
+                        (src, typeOfSrc, context) -> new JsonPrimitive(src.toString()))
+                .create();
+    }
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-
+        logger.info("Processing GET request for student profile API");
         response.setContentType("application/json");
 
         try {
-            // 1. Lấy email từ session
-            String studentEmail = (String) request.getSession().getAttribute("studentEmail");
+            String studentEmail = (String) request.getSession().getAttribute("email");
 
             if (studentEmail == null) {
                 sendError(response, HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized: Please login first.");
                 return;
             }
 
-            // 2. Query database tìm student
             Student student = studentDAO.getStudentByEmail(studentEmail);
             if (student == null) {
                 sendError(response, HttpServletResponse.SC_NOT_FOUND, "Student profile not found.");
                 return;
             }
 
-            // 3. Trả về JSON student
             JsonObject successJson = new JsonObject();
             successJson.addProperty("error", 0);
             successJson.addProperty("message", "success");
@@ -50,7 +66,7 @@ public class StudentProfileApiServlet extends HttpServlet {
             response.getWriter().write(gson.toJson(successJson));
 
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("Error in StudentProfileApiServlet: ", e);
             sendError(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Server error: " + e.getMessage());
         }
     }
