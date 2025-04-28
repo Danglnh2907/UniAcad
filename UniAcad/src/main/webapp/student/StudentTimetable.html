@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Student Weekly Timetable</title>
+  <link rel="stylesheet" href="studentTimetable.css">
+</head>
+<body>
+
+<div class="timetable-container">
+  <h2>Weekly Timetable</h2>
+
+  <div id="controls">
+    <input type="date" id="startDate" onchange="reloadSchedule()">
+  </div>
+
+  <table id="scheduleTable">
+    <thead>
+    <tr>
+      <th>Slot</th>
+      <th>Monday</th>
+      <th>Tuesday</th>
+      <th>Wednesday</th>
+      <th>Thursday</th>
+      <th>Friday</th>
+      <th>Saturday</th>
+      <th>Sunday</th>
+    </tr>
+    </thead>
+    <tbody id="scheduleBody">
+    <!-- JS sẽ tự render ở đây -->
+    </tbody>
+  </table>
+</div>
+
+<script src="studentTimetable.js"></script>
+
+</body>
+</html>

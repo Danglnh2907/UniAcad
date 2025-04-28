@@ -15,9 +15,4 @@ public class VerifyChecking {
         String regex = "^[A-Z][a-zA-Z\\s]+$";
         return fullName.matches(regex);
     }
-
-    public boolean verifyPassword(String password) {
-        String regex = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)[A-Za-z\\d@$!%*?&]{8,}$";
-        return password.matches(regex);
-    }
 }

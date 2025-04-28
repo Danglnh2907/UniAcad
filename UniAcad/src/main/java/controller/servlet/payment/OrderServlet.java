@@ -3,6 +3,9 @@ package controller.servlet.payment;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
+import dao.FeeDAO;
+import dao.StudentDAO;
+import model.database.Student;
 import util.service.paymentconfig.PayOSConfig;
 import model.paymentModel.CreatePaymentLinkRequestBody;
 import jakarta.servlet.ServletException;
@@ -22,7 +25,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-@WebServlet(name = "OrderServlet", urlPatterns = {"/order/create", "/order/*", "/order/confirm-webhook"})
+@WebServlet(name = "OrderServlet", urlPatterns = {"/student/order/create", "/student/order/*", "/student/order/confirm-webhook"})
 public class OrderServlet extends HttpServlet {
 
     private final PayOS payOS;
@@ -55,11 +58,10 @@ public class OrderServlet extends HttpServlet {
                 final String returnUrl = requestBody.getReturnUrl();
                 final String cancelUrl = requestBody.getCancelUrl();
                 final int price = requestBody.getPrice();
-
-                // Generate order code
-                String currentTimeString = String.valueOf(new Date().getTime());
-                long orderCode = Long.parseLong(currentTimeString.substring(currentTimeString.length() - 6));
-
+                FeeDAO feeDAO = new FeeDAO();
+                StudentDAO studentDAO= new StudentDAO();
+                Student student = studentDAO.getStudentByEmail(request.getParameter("email"));
+                long orderCode = feeDAO.findUnpaidFeeByStudentId(student.getStudentID()).getId();
                 ItemData item = ItemData.builder().name(productName).price(price).quantity(1).build();
                 PaymentData paymentData = PaymentData.builder()
                         .orderCode(orderCode)

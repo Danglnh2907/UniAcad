@@ -1,136 +1,111 @@
-package controller.servlet.payment;
+package controller.servlet.payment;// ✨ Cleaned CheckoutServlet.java\package controller.servlet.payment;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import util.service.paymentconfig.PayOSConfig;
+import dao.FeeDAO;
+import dao.StudentDAO;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import model.database.Fee;
+import model.database.Student;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import util.service.payment.PaymentService;
+import util.service.paymentconfig.PayOSConfig;
 import vn.payos.PayOS;
 import vn.payos.type.CheckoutResponseData;
 import vn.payos.type.ItemData;
 import vn.payos.type.PaymentData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.Date;
 
-@WebServlet(name = "CheckoutServlet", urlPatterns = {"/success", "/cancel", "/create-payment-link"})
+@WebServlet(name = "CheckoutServlet", urlPatterns = {"/student/success", "/student/cancel", "/student/create-payment-link"}, description = "Handles payment link creation and result redirects.")
 public class CheckoutServlet extends HttpServlet {
 
     private static final Logger logger = LoggerFactory.getLogger(CheckoutServlet.class);
-    private final PayOS payOS;
+    private final PayOS payOS = PayOSConfig.getPayOS();
     private final Gson gson = new GsonBuilder().create();
 
-    public CheckoutServlet() {
-        this.payOS = PayOSConfig.getPayOS();
-    }
-
     @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        String path = request.getServletPath();
-        String resource;
-        switch (path) {
-            case "/success":
-                resource = "/success.html";
-                break;
-            case "/cancel":
-                resource = "/cancel.html";
-                break;
-            default:
-                request.setAttribute("errorMessage", "Resource not found: " + path);
-                request.getRequestDispatcher("/error.html").forward(request, response);
-                return;
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        PaymentService paymentService = new PaymentService();
+        StudentDAO studentDAO = new StudentDAO();
+        Student student = null;
+        try {
+            HttpSession session = request.getSession();
+            student = studentDAO.getStudentByEmail(session.getAttribute("email").toString());
+        } catch (Exception e) {
+            logger.error("Error retrieving student information", e);
         }
-        request.getRequestDispatcher(resource).forward(request, response);
+        Fee fee = new FeeDAO().findUnpaidFeeByStudentId(student.getStudentID());
+        switch (request.getServletPath()) {
+            case "/student/success":
+                paymentService.payFee(fee.getId(), fee.getAmount());
+                request.getRequestDispatcher("/student/success.html").forward(request, response);
+                break;
+            case "/student/cancel":
+                request.getRequestDispatcher("/student/cancel.html").forward(request, response);
+            break;
+            default: response.sendError(HttpServletResponse.SC_NOT_FOUND, "Resource not found");
+        }
     }
 
     @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        if (request.getServletPath().equals("/create-payment-link")) {
-            response.setContentType("application/json");
-            JsonObject responseJson = new JsonObject();
-            try {
-                logger.info("Processing /create-payment-link POST request");
-                final String baseUrl = getBaseUrl(request);
-                logger.info("Base URL: {}", baseUrl);
-                final String productName = "Học phí đại học FPT";
-                final String returnUrl = baseUrl + "/success";
-                final String cancelUrl = baseUrl + "/cancel";
-
-                // Get and validate amount
-                String amountStr = request.getParameter("amount");
-                logger.info("Input amount: {}", amountStr);
-                if (amountStr == null || amountStr.trim().isEmpty()) {
-                    throw new IllegalArgumentException("Amount is required");
-                }
-                int price;
-                try {
-                    price = Integer.parseInt(amountStr);
-                    if (price < 1000) {
-                        throw new IllegalArgumentException("Amount must be at least 1000 VND");
-                    }
-                } catch (NumberFormatException e) {
-                    throw new IllegalArgumentException("Invalid amount format");
-                }
-                logger.info("Validated price: {}", price);
-
-                // Get and validate description
-                String description = request.getParameter("description");
-                logger.info("Input description: {}", description);
-                if (description == null || description.trim().isEmpty()) {
-                    throw new IllegalArgumentException("Description is required");
-                }
-                if (description.length() > 200) {
-                    throw new IllegalArgumentException("Description must not exceed 200 characters");
-                }
-
-                // Generate order code
-                String currentTimeString = String.valueOf(new Date().getTime());
-                logger.info("Current time string: {}", currentTimeString);
-                long orderCode = Long.parseLong(currentTimeString.substring(currentTimeString.length() - 6));
-                logger.info("Order code: {}", orderCode);
-
-                ItemData item = ItemData.builder().name(productName).quantity(1).price(price).build();
-                PaymentData paymentData = PaymentData.builder()
-                        .orderCode(orderCode)
-                        .amount(price)
-                        .description(description)
-                        .returnUrl(returnUrl)
-                        .cancelUrl(cancelUrl)
-                        .item(item)
-                        .build();
-                logger.info("PaymentData created: {}", paymentData);
-
-                CheckoutResponseData data = payOS.createPaymentLink(paymentData);
-                logger.info("CheckoutResponseData: {}", data);
-                String checkoutUrl = data.getCheckoutUrl();
-                if (checkoutUrl == null) {
-                    throw new IllegalStateException("PayOS returned null checkout URL");
-                }
-                logger.info("Checkout URL: {}", checkoutUrl);
-
-                responseJson.addProperty("error", 0);
-                responseJson.addProperty("message", "success");
-                JsonObject dataJson = new JsonObject();
-                dataJson.addProperty("checkoutUrl", checkoutUrl);
-                responseJson.add("data", dataJson);
-            } catch (Exception e) {
-                logger.error("Error in /create-payment-link: {}", e.getMessage(), e);
-                responseJson.addProperty("error", -1);
-                responseJson.addProperty("message", "Failed to create payment link: " + e.getMessage());
-                responseJson.add("data", null);
-            }
-            response.getWriter().write(gson.toJson(responseJson));
-        } else {
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        if (!"/student/create-payment-link".equals(request.getServletPath())) {
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
+            return;
         }
+
+        JsonObject resJson = new JsonObject();
+        try {
+            HttpSession session = request.getSession();
+            Student student = new StudentDAO().getStudentByEmail(session.getAttribute("email").toString());
+
+            Fee fee = new FeeDAO().findUnpaidFeeByStudentId(student.getStudentID());
+            if (fee == null) {
+                writeJsonResponse(response, buildErrorResponse("No unpaid fee found."));
+                return;
+            }
+
+            BigDecimal feeAmount = fee.getAmount();
+            if (feeAmount == null || feeAmount.compareTo(BigDecimal.valueOf(1000)) < 0)
+                throw new IllegalArgumentException("Invalid or too small fee amount.");
+
+            String description = "Student ID: " + student.getStudentID();
+            CheckoutResponseData checkoutData = payOS.createPaymentLink(buildPaymentData(feeAmount.intValue(), description, student.getStudentID(), getBaseUrl(request)));
+            JsonObject dataJson = new JsonObject();
+            dataJson.addProperty("checkoutUrl", checkoutData.getCheckoutUrl());
+            resJson.addProperty("error", 0);
+            resJson.addProperty("message", "success");
+            resJson.add("data", dataJson);
+        } catch (Exception e) {
+            logger.error("Error creating payment link", e);
+            resJson = buildErrorResponse(e.getMessage());
+        }
+        writeJsonResponse(response, resJson);
+    }
+
+    private PaymentData buildPaymentData(int price, String description, String studentId, String baseUrl) {
+        String productName = "University Fee, Student ID: " + studentId;
+        long orderCode = Long.parseLong(String.valueOf(new Date().getTime()).substring(7));
+        ItemData item = ItemData.builder().name(productName).quantity(1).price(price).build();
+
+        return PaymentData.builder()
+                .orderCode(orderCode)
+                .amount(price)
+                .description(description)
+                .returnUrl(baseUrl + "/student/success")
+                .cancelUrl(baseUrl + "/student/cancel")
+                .item(item)
+                .build();
     }
 
     private String getBaseUrl(HttpServletRequest request) {
@@ -139,11 +114,19 @@ public class CheckoutServlet extends HttpServlet {
         int serverPort = request.getServerPort();
         String contextPath = request.getContextPath();
 
-        String url = scheme + "://" + serverName;
-        if ((scheme.equals("http") && serverPort != 80) || (scheme.equals("https") && serverPort != 443)) {
-            url += ":" + serverPort;
-        }
-        url += contextPath;
-        return url;
+        return scheme + "://" + serverName + ((serverPort == 80 || serverPort == 443) ? "" : ":" + serverPort) + contextPath;
+    }
+
+    private void writeJsonResponse(HttpServletResponse response, JsonObject resJson) throws IOException {
+        response.setContentType("application/json");
+        response.getWriter().write(gson.toJson(resJson));
+    }
+
+    private JsonObject buildErrorResponse(String message) {
+        JsonObject resJson = new JsonObject();
+        resJson.addProperty("error", -1);
+        resJson.addProperty("message", message);
+        resJson.add("data", null);
+        return resJson;
     }
 }

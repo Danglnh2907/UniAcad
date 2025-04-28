@@ -3,37 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login Demo</title>
+    <title>Login - UniAcad</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f3f4f6;
-        }
-        .login-container {
-            background-color: white;
-            padding: 2rem;
-            border-radius: 0.5rem;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            text-align: center;
-        }
-    </style>
 </head>
-<body>
-<div class="login-container">
-    <h1 class="text-2xl font-bold mb-6">Welcome to the Demo</h1>
-    <p class="mb-4">Please sign in with your Google account to continue</p>
+<body class="flex items-center justify-center min-h-screen bg-gray-100">
+
+<div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md text-center">
+    <h1 class="text-2xl font-bold mb-4">Welcome to UniAcad</h1>
+    <p class="text-gray-600 mb-6">Sign in with your Google account to continue</p>
+
     <a href="http://localhost:9090/UniAcad/api/google-auth"
-       class="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-semibold rounded-md hover:bg-blue-700">
-        <svg class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
+       class="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
             <path d="M12.24 10.285V14.4h6.806c-.275 1.765-2.056 5.174-6.806 5.174-4.095 0-7.439-3.389-7.439-7.574s3.344-7.574 7.439-7.574c2.327 0 3.904.955 4.794 1.783l3.447-3.442C18.155 1.566 15.463 0 12.24 0 5.949 0 1 4.949 1 11.24s4.949 11.24 11.24 11.24c6.292 0 11.24-4.949 11.24-11.24 0-.71-.064-1.416-.188-2.108H12.24z"/>
         </svg>
         Sign in with Google
     </a>
 </div>
+
 </body>
 </html>

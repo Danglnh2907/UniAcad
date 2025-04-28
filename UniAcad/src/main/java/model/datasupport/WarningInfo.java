@@ -10,7 +10,69 @@ public class WarningInfo {
     private Double mark;
     private String warningType;
 
-    // Getters và Setters
+    public String getStudentId() {
+        return studentId;
+    }
+
+    public void setStudentId(String studentId) {
+        this.studentId = studentId;
+    }
+
+    public String getStudentName() {
+        return studentName;
+    }
+
+    public void setStudentName(String studentName) {
+        this.studentName = studentName;
+    }
+
+    public String getSubjectName() {
+        return subjectName;
+    }
+
+    public void setSubjectName(String subjectName) {
+        this.subjectName = subjectName;
+    }
+
+    public int getAbsentCount() {
+        return absentCount;
+    }
+
+    public void setAbsentCount(int absentCount) {
+        this.absentCount = absentCount;
+    }
+
+    public int getTotalSlots() {
+        return totalSlots;
+    }
+
+    public void setTotalSlots(int totalSlots) {
+        this.totalSlots = totalSlots;
+    }
+
+    public double getAbsentRate() {
+        return absentRate;
+    }
+
+    public void setAbsentRate(double absentRate) {
+        this.absentRate = absentRate;
+    }
+
+    public Double getMark() {
+        return mark;
+    }
+
+    public void setMark(Double mark) {
+        this.mark = mark;
+    }
+
+    public String getWarningType() {
+        return warningType;
+    }
+
+    public void setWarningType(String warningType) {
+        this.warningType = warningType;
+    }
 
     // Optional: Constructor
     public WarningInfo(String studentId, String studentName, String subjectName,

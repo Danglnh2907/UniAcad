@@ -21,7 +21,7 @@ public class MajorDAO extends DBContext {
      */
     public boolean checkMajorExists(String majorId) {
         String query = "SELECT COUNT(*) FROM Major WHERE MajorID = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, majorId);
             ResultSet resultSet = statement.executeQuery();
             if (resultSet.next()) {
@@ -53,7 +53,7 @@ public class MajorDAO extends DBContext {
      */
     public Major getMajorById(String majorId) {
         String query = "SELECT * FROM Major WHERE MajorID = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, majorId);
             ResultSet resultSet = statement.executeQuery();
             return resultMap(resultSet);
@@ -69,7 +69,7 @@ public class MajorDAO extends DBContext {
     public List<Major> getAllMajors() {
         List<Major> majors = new ArrayList<>();
         String query = "SELECT * FROM Major";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             ResultSet resultSet = statement.executeQuery();
             while (resultSet.next()) {
                 Major major = resultMap(resultSet);
@@ -89,7 +89,7 @@ public class MajorDAO extends DBContext {
      */
     public boolean createMajor(Major major) {
         String query = "INSERT INTO Major (MajorID, MajorName) VALUES (?, ?)";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, major.getMajorID());
             statement.setString(2, major.getMajorName());
 
@@ -106,7 +106,7 @@ public class MajorDAO extends DBContext {
      */
     public boolean updateMajor(Major major) {
         String query = "UPDATE Major SET MajorName = ? WHERE MajorID = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, major.getMajorName());
             statement.setString(2, major.getMajorID());
 
@@ -123,7 +123,7 @@ public class MajorDAO extends DBContext {
      */
     public boolean deleteMajor(String majorId) {
         String query = "DELETE FROM Major WHERE MajorID = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, majorId);
             int rowsAffected = statement.executeUpdate();
             return rowsAffected > 0;

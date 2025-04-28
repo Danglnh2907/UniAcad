@@ -22,7 +22,7 @@ public class TeacherDAO extends DBContext {
      */
     public boolean checkTeacherExists(String teacherId) {
         String query = "SELECT COUNT(*) FROM Teacher WHERE TeacherID = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, teacherId);
             ResultSet resultSet = statement.executeQuery();
             if (resultSet.next()) {
@@ -39,7 +39,7 @@ public class TeacherDAO extends DBContext {
      */
     public boolean checkEmailExists(String email) {
         String query = "SELECT COUNT(*) FROM Teacher WHERE TeacherEmail = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, email);
             ResultSet resultSet = statement.executeQuery();
             if (resultSet.next()) {
@@ -80,7 +80,7 @@ public class TeacherDAO extends DBContext {
      */
     public Teacher getTeacherById(String teacherId) {
         String query = "SELECT * FROM Teacher WHERE TeacherID = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, teacherId);
             ResultSet resultSet = statement.executeQuery();
             return resultMap(resultSet);
@@ -95,7 +95,7 @@ public class TeacherDAO extends DBContext {
      */
     public Teacher getTeacherByEmail(String email) {
         String query = "SELECT * FROM Teacher WHERE TeacherEmail = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, email);
             ResultSet resultSet = statement.executeQuery();
             return resultMap(resultSet);
@@ -111,7 +111,7 @@ public class TeacherDAO extends DBContext {
     public List<Teacher> getAllTeachers() {
         List<Teacher> teachers = new ArrayList<>();
         String query = "SELECT * FROM Teacher";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             ResultSet resultSet = statement.executeQuery();
             while (resultSet.next()) {
                 Teacher teacher = resultMap(resultSet);
@@ -132,7 +132,7 @@ public class TeacherDAO extends DBContext {
     public List<Teacher> getTeachersByDepartment(String departmentId) {
         List<Teacher> teachers = new ArrayList<>();
         String query = "SELECT * FROM Teacher WHERE DepartmentID = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, departmentId);
             ResultSet resultSet = statement.executeQuery();
             while (resultSet.next()) {
@@ -154,7 +154,7 @@ public class TeacherDAO extends DBContext {
     public List<Teacher> getTeachersByStatus(int status) {
         List<Teacher> teachers = new ArrayList<>();
         String query = "SELECT * FROM Teacher WHERE TeacherStatus = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setInt(1, status);
             ResultSet resultSet = statement.executeQuery();
             while (resultSet.next()) {
@@ -176,7 +176,7 @@ public class TeacherDAO extends DBContext {
     public boolean createTeacher(Teacher teacher) {
         String query = "INSERT INTO Teacher (TeacherID, TeacherEmail, TeacherName, TeacherPhone, TeacherStatus, DepartmentID) " +
                 "VALUES (?, ?, ?, ?, ?, ?)";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, teacher.getTeacherID());
             statement.setString(2, teacher.getTeacherEmail());
             statement.setString(3, teacher.getTeacherName());
@@ -198,7 +198,7 @@ public class TeacherDAO extends DBContext {
     public boolean updateTeacher(Teacher teacher) {
         String query = "UPDATE Teacher SET TeacherEmail = ?, TeacherName = ?, TeacherPhone = ?, TeacherStatus = ?, " +
                 "DepartmentID = ? WHERE TeacherID = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, teacher.getTeacherEmail());
             statement.setString(2, teacher.getTeacherName());
             statement.setString(3, teacher.getTeacherPhone());
@@ -219,7 +219,7 @@ public class TeacherDAO extends DBContext {
      */
     public boolean deleteTeacher(String teacherId) {
         String query = "DELETE FROM Teacher WHERE TeacherID = ?";
-        try (PreparedStatement statement = connection.prepareStatement(query)) {
+        try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, teacherId);
             int rowsAffected = statement.executeUpdate();
             return rowsAffected > 0;

@@ -31,7 +31,7 @@ public class ScheduleDAO extends DBContext {
                 "AND c.CourseStatus = 0 " +
                 "ORDER BY s.StartTime";
 
-        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+        try (PreparedStatement ps = getConnection().prepareStatement(sql)) {
             ps.setString(1, studentId);
             ps.setDate(2, new java.sql.Date(startDate.getTime()));
             ps.setDate(3, new java.sql.Date(endDate.getTime()));
