@@ -5,6 +5,8 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
@@ -13,6 +15,7 @@ import java.io.IOException;
  */
 @WebServlet(name = "PayServlet", value = "/student/fee")
 public class PayServlet extends HttpServlet {
+    Logger logger = LoggerFactory.getLogger(PayServlet.class);
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
@@ -28,5 +31,6 @@ public class PayServlet extends HttpServlet {
 
     @Override
     public void destroy() {
+        logger.info("PayServlet destroyed.");
     }
 }
