@@ -13,10 +13,10 @@ import java.io.IOException;
  * Mapped to /studentattandanceservlet by default.
  */
 @WebServlet(
-        name = "StudentAttandanceServlet",
+        name = "StudentAttendanceServlet",
         value = "/student/attendanceReport"
 )
-public class StudentAttandanceServlet extends HttpServlet {
+public class StudentAttendanceServlet extends HttpServlet {
 
     /**
      * Handle GET requests.

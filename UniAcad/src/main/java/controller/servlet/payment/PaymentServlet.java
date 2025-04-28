@@ -3,6 +3,7 @@ package controller.servlet.payment;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
+import util.service.payment.PaymentService;
 import util.service.paymentconfig.PayOSConfig;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -15,12 +16,14 @@ import vn.payos.type.WebhookData;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.math.BigDecimal;
 
 @WebServlet(name = "PaymentServlet", urlPatterns = {"/payment/payos_transfer_handler"})
 public class PaymentServlet extends HttpServlet {
 
     private final PayOS payOS;
     private final Gson gson = new GsonBuilder().create();
+    private final PaymentService paymentService = new PaymentService(); // ✅ Thêm PaymentService
 
     public PaymentServlet() {
         this.payOS = PayOSConfig.getPayOS();
@@ -33,7 +36,7 @@ public class PaymentServlet extends HttpServlet {
         JsonObject responseJson = new JsonObject();
 
         try {
-            // Read JSON request body
+            // 1. Read Webhook Body
             StringBuilder jb = new StringBuilder();
             String line;
             BufferedReader reader = request.getReader();
@@ -42,17 +45,34 @@ public class PaymentServlet extends HttpServlet {
             }
             Webhook webhookBody = gson.fromJson(jb.toString(), Webhook.class);
 
+            // 2. Verify Webhook
             WebhookData data = payOS.verifyPaymentWebhookData(webhookBody);
-            System.out.println(data);
+            System.out.println("Webhook received: " + data);
+
+            // 3. Check if successful
+            if ("00".equals(data.getCode())) {  // PayOS success code
+                long orderCode = data.getOrderCode(); // orderCode = FeeID
+                BigDecimal paidAmount = BigDecimal.valueOf(data.getAmount());
+
+                // 4. Use PaymentService to handle
+                paymentService.payFee((int) orderCode, paidAmount); // 👈 Xài service luôn
+                System.out.println("Payment processed successfully for orderCode: " + orderCode);
+            } else {
+                System.out.println("Payment not successful, code: " + data.getCode());
+            }
+
+            // 5. Return OK
             responseJson.addProperty("error", 0);
-            responseJson.addProperty("message", "Webhook delivered");
+            responseJson.addProperty("message", "Webhook handled successfully");
             responseJson.add("data", null);
+
         } catch (Exception e) {
             e.printStackTrace();
             responseJson.addProperty("error", -1);
-            responseJson.addProperty("message", e.getMessage());
+            responseJson.addProperty("message", "Error handling webhook: " + e.getMessage());
             responseJson.add("data", null);
         }
+
         response.getWriter().write(gson.toJson(responseJson));
     }
 }
