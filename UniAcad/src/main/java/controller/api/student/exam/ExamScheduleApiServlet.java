@@ -1,6 +1,6 @@
 package controller.api.student.exam;
 
-import com.google.gson.Gson;
+import com.google.gson.*;
 import dao.ExamDAO;
 import dao.StudentDAO;
 import jakarta.servlet.annotation.WebServlet;
@@ -9,6 +9,9 @@ import model.database.Student;
 import model.datasupport.ExamSchedule;
 
 import java.io.IOException;
+import java.lang.reflect.Type;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @WebServlet(urlPatterns = "/api/student/examSchedule")
@@ -16,7 +19,14 @@ public class ExamScheduleApiServlet extends HttpServlet {
 
     private final ExamDAO examDAO = new ExamDAO();
     private final StudentDAO studentDAO = new StudentDAO();
-    private final Gson gson = new Gson();
+
+    // ✅ Gson hỗ trợ LocalDateTime + Duration
+    private final Gson gson = new GsonBuilder()
+            .registerTypeAdapter(LocalDateTime.class, (JsonSerializer<LocalDateTime>) (src, typeOfSrc, context) ->
+                    new JsonPrimitive(src.toString()))
+            .registerTypeAdapter(Duration.class, (JsonSerializer<Duration>) (src, typeOfSrc, context) ->
+                    new JsonPrimitive(src.toString()))
+            .create();
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
