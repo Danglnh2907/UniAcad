@@ -5,6 +5,7 @@ import util.service.database.DBContext;
 
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class MarkReportDAO extends DBContext {
@@ -80,7 +81,8 @@ public class MarkReportDAO extends DBContext {
     /**
      * Lấy bảng điểm theo StudentID.
      */
-    public MarkReport getMarkReportByStudentId(String studentId) {
+    public List<MarkReport> getMarkReportByStudentId(String studentId) {
+        List<MarkReport> reports = new ArrayList<>();
         String sql = """
             SELECT
                 st.StudentID,
@@ -98,15 +100,15 @@ public class MarkReportDAO extends DBContext {
         try (PreparedStatement ps = getConnection().prepareStatement(sql)) {
             ps.setString(1, studentId);
             ResultSet rs = ps.executeQuery();
-
-            if (rs.next()) {
-                return mapResultSetToMarkReport(rs);
+            while (rs.next())
+            {
+                reports.add(mapResultSetToMarkReport(rs));
             }
-
+            return reports;
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return null;
+        return Collections.emptyList();
     }
 
     private MarkReport mapResultSetToMarkReport(ResultSet rs) throws SQLException {
