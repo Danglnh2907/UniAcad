@@ -1,226 +1,124 @@
 package util.service.excel;
 
-import dao.StudentDAO;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.streaming.SXSSFSheet;
 import org.apache.poi.xssf.usermodel.*;
+import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.service.file.FileService;
 
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.util.*;
+import java.util.regex.Pattern;
 
 /**
- * A service for processing Excel files with flexible column configurations and multiple data types.
- * Supports extracting and saving images, handling various data types, and processing multiple sheets.
- * Integrates with {@link FileService} for file operations.
- *
- * @author [Your Name]
+ * ExcelService: Advanced Excel file processor with template generation, multi-sheet reading,
+ * image handling, custom validation, and header inference. Optimized for large files using streaming.
  */
 public class ExcelService {
     private static final Logger logger = LoggerFactory.getLogger(ExcelService.class);
-    private static final String UPLOAD_DIR = "xlsx";
+    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
+    private static final int MAX_ROWS_PER_BATCH = 1000;
+    private static final int MAX_SHEET_COLUMNS = 16384;
 
     private final FileService fileService;
 
-    /**
-     * Constructs an ExcelService with a FileService instance for handling file operations.
-     *
-     * @param fileService the FileService instance for saving images and accessing files
-     * @throws IllegalArgumentException if fileService is null
-     */
     public ExcelService(FileService fileService) {
-        if (fileService == null) {
-            throw new IllegalArgumentException("FileService cannot be null");
-        }
+        if (fileService == null) throw new IllegalArgumentException("FileService cannot be null");
         this.fileService = fileService;
-        initializeUploadDirectory();
     }
 
-    /**
-     * Initializes the upload directory for storing images extracted from Excel files.
-     */
-    private void initializeUploadDirectory() {
-        fileService.saveFileImg("dummy.txt", new byte[0]); // Trigger directory creation
-        logger.info("Thread {}: Initialized upload directory: {}",
-                Thread.currentThread().getName(), UPLOAD_DIR);
-    }
+    public ExcelProcessingResult processExcelFile(String fileName, List<ColumnConfig> columnConfigs, int startRow, String sheetName, int headerRow) throws IOException {
+        Objects.requireNonNull(fileName, "File name cannot be null or empty");
+        if (fileName.trim().isEmpty()) throw new IllegalArgumentException("File name cannot be empty");
 
-    /**
-     * Processes an Excel file and extracts data based on the provided column configurations, starting from a specified row.
-     * Supports multiple data types (STRING, INTEGER, DOUBLE, DATE, IMAGE, BOOLEAN, EMAIL) and saves images using FileService.
-     *
-     * @param fileName      the name of the Excel file
-     * @param columnConfigs the list of column configurations, or null to infer from header row
-     * @param startRow      the 1-based row index to start reading data (e.g., 3 to skip title and header); defaults to 2 if <= 0
-     * @return an ExcelProcessingResult containing the processed data and any errors
-     * @throws IOException              if the Excel file cannot be read
-     * @throws IllegalArgumentException if fileName is null/empty, columnConfigs are invalid, or startRow is invalid
-     */
-    public ExcelProcessingResult processExcelFile(String fileName, List<ColumnConfig> columnConfigs, int startRow) throws IOException {
-        if (fileName == null || fileName.trim().isEmpty()) {
-            throw new IllegalArgumentException("File name cannot be null or empty");
-        }
-        validateColumnConfigs(columnConfigs);
+        try (InputStream is = fileService.getFileInputStream(fileName, FileService.FileType.EXCEL);
+             XSSFWorkbook workbook = new XSSFWorkbook(is)) {
 
-        InputStream fileContent = new FileInputStream(fileService.getFilePath(fileName, "xlsx"));
-        XSSFWorkbook workbook = new XSSFWorkbook(fileContent);
-        Sheet sheet = workbook.getSheetAt(0);
-        List<XSSFPictureData> pictures = workbook.getAllPictures();
+            XSSFSheet sheet = sheetName != null ? workbook.getSheet(sheetName) : workbook.getSheetAt(0);
+            if (sheet == null) throw new IllegalArgumentException("Sheet not found: " + (sheetName != null ? sheetName : "first sheet"));
 
-        // Validate startRow
-        startRow = startRow <= 0 ? 2 : startRow; // Default to row 2 (skip header)
-        if (startRow > sheet.getLastRowNum() + 1) {
-            workbook.close();
-            throw new IllegalArgumentException("Start row " + startRow + " exceeds sheet row count: " + (sheet.getLastRowNum() + 1));
-        }
-
-        // Assume header is the row before startRow if columnConfigs is null
-        int headerRowIndex = columnConfigs == null ? startRow - 1 : 0;
-        logger.info("Thread {}: Processing sheet '{}': {} rows, {} pictures, startRow={}, headerRowIndex={}",
-                Thread.currentThread().getName(), sheet.getSheetName(), sheet.getLastRowNum(), pictures.size(), startRow, headerRowIndex);
-
-        ExcelProcessingResult result = processSheet(sheet, pictures, columnConfigs, startRow, headerRowIndex);
-
-        workbook.close();
-        logger.info("Thread {}: Processed {} rows successfully with {} errors",
-                Thread.currentThread().getName(), result.getData().size(), result.getErrors().size());
-        return result;
-    }
-
-    /**
-     * Processes a specific sheet in the Excel file, starting from the specified row.
-     *
-     * @param sheet          the sheet to process
-     * @param pictures       the list of pictures in the Excel file
-     * @param columnConfigs  the column configurations to apply
-     * @param startRow       the 1-based row index to start reading data
-     * @param headerRowIndex the 1-based row index for the header (used if columnConfigs is null)
-     * @return an ExcelProcessingResult containing the processed data and errors
-     * @throws IOException if an image cannot be saved
-     */
-    private ExcelProcessingResult processSheet(Sheet sheet, List<XSSFPictureData> pictures, List<ColumnConfig> columnConfigs, int startRow, int headerRowIndex) throws IOException {
-        List<ColumnConfig> effectiveConfigs = columnConfigs != null && !columnConfigs.isEmpty()
-                ? columnConfigs
-                : inferColumnConfigs(sheet.getRow(headerRowIndex - 1)); // 0-based index
-
-        List<Map<String, Object>> data = new ArrayList<>();
-        List<ProcessingError> errors = new ArrayList<>();
-
-        for (Row row : sheet) {
-            if (row.getRowNum() < startRow - 1) continue; // Skip rows before startRow (0-based)
-            if (isRowEmpty(row)) {
-                logger.debug("Thread {}: Skipping empty row {}", Thread.currentThread().getName(), row.getRowNum() + 1);
-                continue;
+            startRow = startRow <= 0 ? 2 : startRow;
+            headerRow = columnConfigs == null ? (headerRow <= 0 ? startRow - 1 : headerRow) : 0;
+            if (startRow > sheet.getLastRowNum() + 1 || (headerRow > 0 && headerRow > sheet.getLastRowNum() + 1)) {
+                throw new IllegalArgumentException("Start/Header row exceeds sheet size.");
             }
-            Map<String, Object> rowData = processRow(row, effectiveConfigs, pictures, errors);
-            if (rowData != null) {
-                data.add(rowData);
+            if (headerRow > 0 && headerRow >= startRow) {
+                throw new IllegalArgumentException("Header row must be before start row.");
             }
-        }
 
-        return new ExcelProcessingResult(data, errors);
-    }
+            List<ColumnConfig> effectiveConfigs = columnConfigs != null && !columnConfigs.isEmpty()
+                    ? columnConfigs
+                    : inferColumnConfigs(sheet.getRow(headerRow - 1));
+            validateColumnConfigs(effectiveConfigs, sheet);
 
-    /**
-     * Checks if a row is empty (all cells are null, blank, or contain only whitespace).
-     *
-     * @param row the row to check
-     * @return true if the row is empty, false otherwise
-     */
-    private boolean isRowEmpty(Row row) {
-        if (row == null) return true;
-        for (Cell cell : row) {
-            if (cell == null || cell.getCellType() == CellType.BLANK) {
-                continue;
-            }
-            if (cell.getCellType() == CellType.STRING) {
-                String value = cell.getStringCellValue();
-                if (value != null && !value.trim().isEmpty()) {
-                    return false;
+            Map<String, XSSFPictureData> pictureMap = preloadPictures(sheet);
+
+            List<Map<String, Object>> data = new ArrayList<>();
+            List<ProcessingError> errors = new ArrayList<>();
+            int rowCount = 0;
+
+            for (Row row : sheet) {
+                if (row.getRowNum() < startRow - 1 || isRowEmpty(row)) continue;
+                Map<String, Object> rowData = processRow(row, effectiveConfigs, pictureMap, errors);
+                if (rowData != null) data.add(rowData);
+
+                if (++rowCount % MAX_ROWS_PER_BATCH == 0) {
+                    logger.debug("Processed {} rows, current memory: {} MB", rowCount, getMemoryUsage());
+                    data = new ArrayList<>(data);
                 }
-            } else {
-                // Non-string cell (e.g., NUMERIC, BOOLEAN, DATE) with data
-                return false;
             }
+
+            logger.info("Processed {} rows with {} errors", rowCount, errors.size());
+            return new ExcelProcessingResult(data, errors);
         }
-        return true;
     }
 
-    /**
-     * Processes a single row and extracts data based on column configurations.
-     *
-     * @param row      the row to process
-     * @param configs  the column configurations
-     * @param pictures the list of pictures in the Excel file
-     * @param errors   the list to store processing errors
-     * @return a map of column names to values, or null if no valid data
-     * @throws IOException if an image cannot be saved
-     */
-    private Map<String, Object> processRow(Row row, List<ColumnConfig> configs, List<XSSFPictureData> pictures, List<ProcessingError> errors) throws IOException {
-        Map<String, Object> rowData = new LinkedHashMap<>();
-        boolean hasValidData = false;
-
-        for (ColumnConfig config : configs) {
-            Cell cell = row.getCell(config.getColumnIndex());
-            try {
-                Object value = getCellValue(cell, config.getType(), pictures, row.getRowNum());
-                if (value != null || !config.isRequired()) {
-                    rowData.put(config.getName(), value);
-                    hasValidData = true;
-                } else {
-                    errors.add(new ProcessingError(row.getRowNum() + 1, config.getColumnIndex(),
-                            "Missing required value for " + config.getName(), ProcessingError.ErrorType.MISSING_VALUE));
-                    logger.warn("Thread {}: Row {}: Missing required value for column '{}'",
-                            Thread.currentThread().getName(), row.getRowNum() + 1, config.getName());
-                }
-            } catch (Exception e) {
-                errors.add(new ProcessingError(row.getRowNum() + 1, config.getColumnIndex(),
-                        "Invalid value for " + config.getName() + ": " + e.getMessage(), ProcessingError.ErrorType.INVALID_TYPE));
-                logger.warn("Thread {}: Row {}: Invalid value for column '{}': {}",
-                        Thread.currentThread().getName(), row.getRowNum() + 1, config.getName(), e.getMessage());
-            }
+    public void generateExcelTemplate(String fileName, List<ColumnConfig> columnConfigs) throws IOException {
+        if (columnConfigs == null || columnConfigs.isEmpty()) {
+            throw new IllegalArgumentException("Column configurations cannot be null or empty");
         }
+        validateColumnConfigs(columnConfigs, null);
 
-        return hasValidData ? rowData : null;
-    }
+        SXSSFWorkbook workbook = null;
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
+            workbook = new SXSSFWorkbook(100);
+            SXSSFSheet sheet = workbook.createSheet("Template");
 
-    /**
-     * Validates the provided column configurations to ensure no duplicate names or invalid indices.
-     *
-     * @param columnConfigs the list of column configurations to validate
-     * @throws IllegalArgumentException if configurations are invalid
-     */
-    private void validateColumnConfigs(List<ColumnConfig> columnConfigs) {
-        if (columnConfigs == null) return;
-        Set<String> names = new HashSet<>();
-        Set<Integer> indices = new HashSet<>();
-        for (ColumnConfig config : columnConfigs) {
-            if (!names.add(config.getName())) {
-                logger.error("Thread {}: Duplicate column name: {}",
-                        Thread.currentThread().getName(), config.getName());
-                throw new IllegalArgumentException("Duplicate column name: " + config.getName());
+            for (ColumnConfig config : columnConfigs) {
+                sheet.trackColumnsForAutoSizing(Arrays.asList(config.columnIndex));
             }
-            if (!indices.add(config.getColumnIndex()) || config.getColumnIndex() < 0) {
-                logger.error("Thread {}: Invalid column index: {}",
-                        Thread.currentThread().getName(), config.getColumnIndex());
-                throw new IllegalArgumentException("Invalid column index: " + config.getColumnIndex());
+
+            Row headerRow = sheet.createRow(0);
+            for (ColumnConfig config : columnConfigs) {
+                Cell cell = headerRow.createCell(config.columnIndex);
+                cell.setCellValue(config.name);
+                sheet.autoSizeColumn(config.columnIndex);
+            }
+
+            Row sampleRow = sheet.createRow(1);
+            for (ColumnConfig config : columnConfigs) {
+                Cell cell = sampleRow.createCell(config.columnIndex);
+                cell.setCellValue(getSampleValue(config.type));
+                sheet.autoSizeColumn(config.columnIndex);
+            }
+
+            workbook.write(bos);
+            if (!fileService.saveFile(fileName, bos.toByteArray(), FileService.FileType.EXCEL, true)) {
+                throw new IOException("Failed to save template via FileService");
+            }
+            logger.info("Template generated: {}", fileName);
+        } finally {
+            if (workbook != null) {
+                workbook.dispose();
             }
         }
     }
 
-    /**
-     * Infers column configurations from the header row if no explicit configuration is provided.
-     *
-     * @param headerRow the header row of the Excel sheet
-     * @return a list of inferred column configurations
-     */
     private List<ColumnConfig> inferColumnConfigs(Row headerRow) {
         if (headerRow == null) {
-            logger.warn("Thread {}: No header row found, using default column names",
-                    Thread.currentThread().getName());
+            logger.warn("No header row found, returning empty configs");
             return Collections.emptyList();
         }
 
@@ -229,24 +127,17 @@ public class ExcelService {
             String name = cell.getCellType() == CellType.STRING ? cell.getStringCellValue().trim() : "Column" + cell.getColumnIndex();
             if (name.isEmpty()) name = "Column" + cell.getColumnIndex();
             DataType type = inferDataType(cell);
-            configs.add(new ColumnConfig(cell.getColumnIndex(), name, type, false));
+            configs.add(new ColumnConfig(cell.getColumnIndex(), name, type, false, null));
         }
-        logger.info("Thread {}: Inferred {} column configurations from header row",
-                Thread.currentThread().getName(), configs.size());
+        logger.info("Inferred {} column configurations from header", configs.size());
         return configs;
     }
 
-    /**
-     * Infers the data type of a cell based on its content.
-     *
-     * @param cell the cell to analyze
-     * @return the inferred data type
-     */
     private DataType inferDataType(Cell cell) {
         if (cell == null) return DataType.STRING;
         switch (cell.getCellType()) {
             case STRING:
-                return isValidEmail(cell.getStringCellValue()) ? DataType.EMAIL : DataType.STRING;
+                return EMAIL_PATTERN.matcher(cell.getStringCellValue()).matches() ? DataType.EMAIL : DataType.STRING;
             case NUMERIC:
                 return DateUtil.isCellDateFormatted(cell) ? DataType.DATE :
                         cell.getNumericCellValue() == Math.floor(cell.getNumericCellValue()) ? DataType.INTEGER : DataType.DOUBLE;
@@ -257,27 +148,69 @@ public class ExcelService {
         }
     }
 
-    /**
-     * Retrieves and converts the value of a cell based on the specified data type.
-     * For IMAGE type, saves the image using FileService and returns the file path.
-     *
-     * @param cell     the cell to process
-     * @param type     the expected data type
-     * @param pictures the list of pictures in the Excel file
-     * @param rowIndex the row index for naming image files
-     * @return the cell value, or null if invalid
-     * @throws IOException if an image cannot be saved
-     */
-    private Object getCellValue(Cell cell, DataType type, List<XSSFPictureData> pictures, int rowIndex) throws IOException {
+    private Map<String, XSSFPictureData> preloadPictures(XSSFSheet sheet) {
+        Map<String, XSSFPictureData> map = new HashMap<>();
+        XSSFDrawing drawing = sheet.getDrawingPatriarch();
+        if (drawing != null) {
+            for (XSSFShape shape : drawing.getShapes()) {
+                if (shape instanceof XSSFPicture) {
+                    XSSFPicture pic = (XSSFPicture) shape;
+                    XSSFClientAnchor anchor = pic.getClientAnchor();
+                    for (int r = anchor.getRow1(); r <= anchor.getRow2(); r++) {
+                        for (int c = anchor.getCol1(); c <= anchor.getCol2(); c++) {
+                            map.put(r + "_" + c, pic.getPictureData());
+                        }
+                    }
+                }
+            }
+        }
+        logger.debug("Preloaded {} pictures", map.size());
+        return map;
+    }
+
+    private boolean isRowEmpty(Row row) {
+        if (row == null) return true;
+        for (Cell cell : row) {
+            if (cell != null && (cell.getCellType() != CellType.BLANK || (cell.getCellType() == CellType.STRING && !cell.getStringCellValue().trim().isEmpty()))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private Map<String, Object> processRow(Row row, List<ColumnConfig> configs, Map<String, XSSFPictureData> pictures, List<ProcessingError> errors) {
+        Map<String, Object> rowData = new LinkedHashMap<>();
+        boolean valid = false;
+
+        for (ColumnConfig config : configs) {
+            try {
+                Cell cell = row.getCell(config.columnIndex);
+                Object value = extractCellValue(cell, config, row.getRowNum(), pictures);
+                if (config.validator != null) config.validator.validate(value);
+                if (value != null || !config.required) {
+                    rowData.put(config.name, value);
+                    valid = true;
+                } else {
+                    errors.add(new ProcessingError(row.getRowNum() + 1, config.columnIndex, "Missing required value for: " + config.name));
+                }
+            } catch (ValidationException ve) {
+                errors.add(new ProcessingError(row.getRowNum() + 1, config.columnIndex, ve.getMessage()));
+            } catch (Exception ex) {
+                errors.add(new ProcessingError(row.getRowNum() + 1, config.columnIndex, "Error processing field: " + config.name + " - " + ex.getMessage()));
+            }
+        }
+        return valid ? rowData : null;
+    }
+
+    private Object extractCellValue(Cell cell, ColumnConfig config, int rowIdx, Map<String, XSSFPictureData> pictures) throws IOException {
         if (cell == null) return null;
-        switch (type) {
+
+        switch (config.type) {
             case STRING:
                 return cell.getCellType() == CellType.STRING ? cell.getStringCellValue().trim() : null;
             case EMAIL:
-                if (cell.getCellType() == CellType.STRING && isValidEmail(cell.getStringCellValue())) {
-                    return cell.getStringCellValue().trim();
-                }
-                return null;
+                String email = cell.getCellType() == CellType.STRING ? cell.getStringCellValue().trim() : null;
+                return email != null && EMAIL_PATTERN.matcher(email).matches() ? email : null;
             case INTEGER:
                 return cell.getCellType() == CellType.NUMERIC ? (int) cell.getNumericCellValue() : null;
             case DOUBLE:
@@ -287,20 +220,15 @@ public class ExcelService {
             case BOOLEAN:
                 return cell.getCellType() == CellType.BOOLEAN ? cell.getBooleanCellValue() : null;
             case IMAGE:
-                XSSFPictureData pic = findPictureForCell(cell, pictures);
-                if (pic != null) {
-                    String extension = getExtensionFromMimeType(pic.getMimeType());
-                    String fileName = "photo_row_" + rowIndex + "_" + System.currentTimeMillis() + "." + extension;
-                    if (fileService.saveFileImg(fileName, pic.getData())) {
-                        logger.debug("Thread {}: Row {}: Saved image: {}",
-                                Thread.currentThread().getName(), rowIndex + 1, fileName);
-                        return fileService.getFilePath(fileName, FileService.IMAGE_FILE_PATH);
+                String key = rowIdx + "_" + cell.getColumnIndex();
+                XSSFPictureData picData = pictures.get(key);
+                if (picData != null) {
+                    String ext = getImageExtension(picData.getMimeType());
+                    String imgName = "img_" + rowIdx + "_" + System.currentTimeMillis() + "." + ext;
+                    if (fileService.saveFile(imgName, picData.getData(), FileService.FileType.IMAGE, false)) {
+                        return fileService.getAbsolutePath(imgName, FileService.FileType.IMAGE);
                     }
-                    logger.warn("Thread {}: Row {}: Failed to save image: {}",
-                            Thread.currentThread().getName(), rowIndex + 1, fileName);
-                } else {
-                    logger.debug("Thread {}: Row {}: No image found for cell at column {}",
-                            Thread.currentThread().getName(), rowIndex + 1, cell.getColumnIndex());
+                    throw new IOException("Failed to save image: " + imgName);
                 }
                 return null;
             default:
@@ -308,221 +236,99 @@ public class ExcelService {
         }
     }
 
-    /**
-     * Finds the picture associated with a specific cell based on its anchor.
-     *
-     * @param cell     the cell to check for an associated picture
-     * @param pictures the list of pictures in the Excel file
-     * @return the associated XSSFPictureData, or null if none found
-     */
-    private XSSFPictureData findPictureForCell(Cell cell, List<XSSFPictureData> pictures) {
-        Sheet sheet = cell.getSheet();
-        if (sheet instanceof XSSFSheet) {
-            XSSFDrawing drawing = ((XSSFSheet) sheet).getDrawingPatriarch();
-            if (drawing != null) {
-                for (XSSFShape shape : drawing) {
-                    if (shape instanceof XSSFPicture) {
-                        XSSFPicture picture = (XSSFPicture) shape;
-                        XSSFClientAnchor anchor = picture.getClientAnchor();
-                        if (anchor.getRow1() == cell.getRowIndex() && anchor.getCol1() == cell.getColumnIndex()) {
-                            return picture.getPictureData();
-                        }
-                    }
-                }
+    private String getImageExtension(String mimeType) {
+        switch (mimeType) {
+            case "image/png": return "png";
+            case "image/jpeg": return "jpg";
+            case "image/bmp": return "bmp";
+            case "image/gif": return "gif";
+            default:
+                logger.warn("Unsupported MIME type: {}, defaulting to png", mimeType);
+                return "png";
+        }
+    }
+
+    private void validateColumnConfigs(List<ColumnConfig> configs, Sheet sheet) {
+        if (configs == null || configs.isEmpty()) return;
+        Set<String> names = new HashSet<>();
+        Set<Integer> indices = new HashSet<>();
+        for (ColumnConfig config : configs) {
+            if (!names.add(config.name)) throw new IllegalArgumentException("Duplicate column name: " + config.name);
+            if (!indices.add(config.columnIndex) || config.columnIndex < 0 || config.columnIndex >= MAX_SHEET_COLUMNS) {
+                throw new IllegalArgumentException("Invalid column index: " + config.columnIndex);
             }
         }
-        return null;
     }
 
-    /**
-     * Determines the file extension based on the MIME type of the picture.
-     *
-     * @param mimeType the MIME type of the picture
-     * @return the file extension (e.g., "png", "jpg")
-     */
-    private String getExtensionFromMimeType(String mimeType) {
-        switch (mimeType) {
-            case "image/png":
-                return "png";
-            case "image/jpeg":
-                return "jpg";
-            case "image/bmp":
-                return "bmp";
-            default:
-                logger.warn("Thread {}: Unsupported MIME type: {}, defaulting to png",
-                        Thread.currentThread().getName(), mimeType);
-                return "png";
+    private String getSampleValue(DataType type) {
+        switch (type) {
+            case STRING: return "Sample Text";
+            case EMAIL: return "example@domain.com";
+            case INTEGER: return "123";
+            case DOUBLE: return "123.45";
+            case DATE: return "1/1/2023";
+            case BOOLEAN: return "TRUE";
+            case IMAGE: return "Insert image here";
+            default: return "";
         }
     }
 
-    /**
-     * Validates an email address using a regex pattern.
-     *
-     * @param email the email address to validate
-     * @return true if the email is valid, false otherwise
-     */
-    private boolean isValidEmail(String email) {
-        String emailRegex = "^[A-Za-z0-9+_.-]+@(.+)$";
-        return email != null && email.matches(emailRegex);
+    private long getMemoryUsage() {
+        Runtime rt = Runtime.getRuntime();
+        return (rt.totalMemory() - rt.freeMemory()) / (1024 * 1024);
     }
 
-    /**
-     * Represents the configuration for a column in the Excel file.
-     */
+    // Inner classes
     public static class ColumnConfig {
-        private final int columnIndex;
-        private final String name;
-        private final DataType type;
-        private final boolean required;
+        public final int columnIndex;
+        public final String name;
+        public final DataType type;
+        public final boolean required;
+        public final ColumnValidator validator;
 
-        /**
-         * Constructs a ColumnConfig with the specified parameters.
-         *
-         * @param columnIndex the index of the column
-         * @param name        the name of the column (used as key in result map)
-         * @param type        the data type of the column
-         * @param required    whether the column is required
-         */
-        public ColumnConfig(int columnIndex, String name, DataType type, boolean required) {
+        public ColumnConfig(int columnIndex, String name, DataType type, boolean required, ColumnValidator validator) {
             this.columnIndex = columnIndex;
             this.name = name;
             this.type = type;
             this.required = required;
-        }
-
-        public int getColumnIndex() {
-            return columnIndex;
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public DataType getType() {
-            return type;
-        }
-
-        public boolean isRequired() {
-            return required;
+            this.validator = validator;
         }
     }
 
-    /**
-     * Represents the data type of a column.
-     */
     public enum DataType {
-        STRING, INTEGER, DOUBLE, DATE, IMAGE, BOOLEAN, EMAIL
+        STRING, INTEGER, DOUBLE, DATE, BOOLEAN, EMAIL, IMAGE
     }
 
-    /**
-     * Represents an error encountered during Excel processing.
-     */
-    public static class ProcessingError {
-        private final int rowIndex;
-        private final int columnIndex;
-        private final String errorMessage;
-        private final ErrorType errorType;
+    @FunctionalInterface
+    public interface ColumnValidator {
+        void validate(Object value) throws ValidationException;
+    }
 
-        /**
-         * The type of processing error.
-         */
-        public enum ErrorType {
-            MISSING_VALUE, INVALID_TYPE, IO_ERROR, OTHER
+    public static class ValidationException extends Exception {
+        public ValidationException(String message) {
+            super(message);
         }
+    }
 
-        /**
-         * Constructs a ProcessingError with the specified parameters.
-         *
-         * @param rowIndex     the row index (1-based)
-         * @param columnIndex  the column index
-         * @param errorMessage the error message
-         * @param errorType    the type of error
-         */
-        public ProcessingError(int rowIndex, int columnIndex, String errorMessage, ErrorType errorType) {
+    public static class ProcessingError {
+        public final int rowIndex;
+        public final int columnIndex;
+        public final String message;
+
+        public ProcessingError(int rowIndex, int columnIndex, String message) {
             this.rowIndex = rowIndex;
             this.columnIndex = columnIndex;
-            this.errorMessage = errorMessage;
-            this.errorType = errorType;
-        }
-
-        public int getRowIndex() {
-            return rowIndex;
-        }
-
-        public int getColumnIndex() {
-            return columnIndex;
-        }
-
-        public String getErrorMessage() {
-            return errorMessage;
-        }
-
-        public ErrorType getErrorType() {
-            return errorType;
+            this.message = message;
         }
     }
 
-    /**
-     * Represents the result of processing an Excel file.
-     */
     public static class ExcelProcessingResult {
-        private final List<Map<String, Object>> data;
-        private final List<ProcessingError> errors;
+        public final List<Map<String, Object>> data;
+        public final List<ProcessingError> errors;
 
-        /**
-         * Constructs an ExcelProcessingResult with the specified data and errors.
-         *
-         * @param data   the processed data
-         * @param errors the list of processing errors
-         */
         public ExcelProcessingResult(List<Map<String, Object>> data, List<ProcessingError> errors) {
             this.data = data;
             this.errors = errors;
-        }
-
-        public List<Map<String, Object>> getData() {
-            return data;
-        }
-
-        public List<ProcessingError> getErrors() {
-            return errors;
-        }
-    }
-
-    /**
-     * Demo main method for testing ExcelService functionality.
-     * Reads a sample Excel file with specified file name, starting from a given row.
-     *
-     * @param args command-line arguments: [fileName]
-     */
-    public static void main(String[] args) {
-        String filename = "studentList.xlsx";
-        FileService fileService = new FileService("");
-        ExcelService excelService = new ExcelService(fileService);
-        List<ColumnConfig> columnConfigs = Arrays.asList(
-                new ColumnConfig(0, "StudentID", DataType.STRING, true),
-                new ColumnConfig(1, "StudentEmail", DataType.EMAIL, true),
-                new ColumnConfig(2, "LastName", DataType.STRING, true),
-                new ColumnConfig(3, "MiddleName", DataType.STRING, true),
-                new ColumnConfig(4, "FirstName", DataType.STRING, true),
-                new ColumnConfig(5, "StudentDoB", DataType.DATE, true),
-                new ColumnConfig(6, "StudentGender", DataType.INTEGER, true),
-                new ColumnConfig(7, "StudentSSN", DataType.STRING, true),
-                new ColumnConfig(8, "District", DataType.STRING, false),
-                new ColumnConfig(9, "Province", DataType.STRING, false),
-                new ColumnConfig(10, "Detail", DataType.STRING, false),
-                new ColumnConfig(11, "Town", DataType.STRING, false),
-                new ColumnConfig(12, "StudentPhone", DataType.STRING, true),
-                new ColumnConfig(13, "CurriculumID", DataType.STRING, true)
-        );
-        int startRow = 2; // Start reading from row 3 (skip title and header)
-        try {
-            ExcelProcessingResult result = excelService.processExcelFile(filename, columnConfigs, startRow);
-            for (Map<String, Object> row : result.getData()) {
-
-            }
-        } catch (IOException e) {
-            logger.error("Error processing Excel file: {}", e.getMessage(), e);
         }
     }
 }

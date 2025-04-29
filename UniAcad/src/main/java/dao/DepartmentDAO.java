@@ -37,14 +37,9 @@ public class DepartmentDAO extends DBContext {
      * Maps a ResultSet to a Department object.
      */
     private Department resultMap(ResultSet resultSet) throws SQLException {
-        if (!resultSet.next()) {
-            return null;
-        }
-
         Department department = new Department();
         department.setDepartmentID(resultSet.getString("DepartmentID"));
         department.setDepartmentName(resultSet.getString("DepartmentName"));
-
         return department;
     }
 
@@ -73,10 +68,7 @@ public class DepartmentDAO extends DBContext {
             ResultSet resultSet = statement.executeQuery();
             while (resultSet.next()) {
                 Department department = resultMap(resultSet);
-                if (department != null) {
-                    departments.add(department);
-                    resultSet.relative(-1); // Move back to read the next record
-                }
+                departments.add(department);
             }
         } catch (SQLException e) {
             logger.error("Error retrieving all departments", e);

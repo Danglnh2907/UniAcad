@@ -12,10 +12,10 @@ public class Study {
     @EmbeddedId
     private StudyId id;
 
-    @MapsId("classID")
+    @MapsId("studentID")
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "ClassID", nullable = false)
-    private Class classID;
+    @JoinColumn(name = "StudentID", nullable = false)
+    private Student studentID;
 
     @MapsId("courseID")
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

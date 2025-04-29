@@ -12,26 +12,26 @@ import java.util.Objects;
 @Getter
 @Setter
 @Embeddable
-public class GroupId implements Serializable {
-    private static final long serialVersionUID = 3468431770185288165L;
+public class MarkId implements Serializable {
+    private static final long serialVersionUID = 6344329259969856309L;
+    @Column(name = "GradeID", nullable = false)
+    private Integer gradeID;
+
     @Column(name = "StudentID", nullable = false, length = 8)
     private String studentID;
-
-    @Column(name = "ClassID", nullable = false, length = 6)
-    private String classID;
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || Hibernate.getClass(this) != Hibernate.getClass(o)) return false;
-        GroupId entity = (GroupId) o;
+        MarkId entity = (MarkId) o;
         return Objects.equals(this.studentID, entity.studentID) &&
-                Objects.equals(this.classID, entity.classID);
+                Objects.equals(this.gradeID, entity.gradeID);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(studentID, classID);
+        return Objects.hash(studentID, gradeID);
     }
 
 }

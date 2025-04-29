@@ -8,7 +8,6 @@ import util.service.database.DBContext;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
-import java.sql.SQLException;
 import java.time.Instant;
 
 /**

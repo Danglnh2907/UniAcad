@@ -4,28 +4,33 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.LinkedHashSet;
+import java.util.Set;
+
 @Getter
 @Setter
 @Entity
 @Table(name = "Grade", schema = "dbo")
 public class Grade {
-    @EmbeddedId
-    private GradeId id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "GradeID", nullable = false)
+    private Integer id;
 
-    @MapsId("courseID")
+    @Column(name = "GradeName")
+    private String gradeName;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "CourseID", nullable = false)
     private Course courseID;
 
-    @MapsId("studentID")
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "StudentID", nullable = false)
-    private Student studentID;
+    @Column(name = "GradePercent", nullable = false)
+    private Integer gradePercent;
 
-    @Column(name = "FE")
-    private Integer fe;
+    @OneToMany(mappedBy = "gradeID")
+    private Set<Exam> exams = new LinkedHashSet<>();
 
-    @Column(name = "OnGoing")
-    private Integer onGoing;
+    @OneToMany(mappedBy = "gradeID")
+    private Set<Mark> marks = new LinkedHashSet<>();
 
 }

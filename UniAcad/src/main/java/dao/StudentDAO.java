@@ -7,8 +7,6 @@ import org.slf4j.LoggerFactory;
 import util.service.database.DBContext;
 
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
 
 public class StudentDAO extends DBContext {
     private static final Logger logger = LoggerFactory.getLogger(StudentDAO.class);
@@ -62,17 +60,18 @@ public class StudentDAO extends DBContext {
 
         return new Student(
                 rs.getString("StudentID"),
-                rs.getString("StudentEmail"),
                 rs.getString("StudentName"),
-                rs.getDate("StudentDoB").toLocalDate(),
-                rs.getBoolean("StudentGender"),
                 rs.getString("StudentSSN"),
-                rs.getString("Address"),
-                rs.getInt("StudentStatus"),
+                rs.getString("StudentEmail"),
                 rs.getString("StudentPhone"),
-                curriculum
+                curriculum,
+                rs.getBoolean("StudentGender"),
+                rs.getString("Address"), // cột Address (không phải StudentAddress nhé)
+                rs.getDate("StudentDoB").toLocalDate(), // convert từ java.sql.Date -> LocalDate
+                rs.getObject("StudentStatus", Integer.class) // đọc nullable Integer
         );
     }
+
 
     public Student getStudentByEmail(String email) {
         String query = "SELECT * FROM Student WHERE StudentEmail = ?";

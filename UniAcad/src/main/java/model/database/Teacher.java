@@ -12,7 +12,7 @@ import java.util.Set;
 @Setter
 @Entity
 @Table(name = "Teacher", schema = "dbo", uniqueConstraints = {
-        @UniqueConstraint(name = "UQ__Teacher__4A75D54C1EB91AF7", columnNames = {"TeacherEmail"})
+        @UniqueConstraint(name = "UQ__Teacher__4A75D54CB13D7A33", columnNames = {"TeacherEmail"})
 })
 public class Teacher {
     @Id

@@ -26,8 +26,7 @@ public class AttendanceReportDAO extends DBContext {
                 COUNT(s.SlotNumber) AS TotalSlots,
                 SUM(CASE WHEN a.Status = 0 THEN 1 ELSE 0 END) AS AbsentSlots
             FROM Student st
-            JOIN [Group] g ON st.StudentID = g.StudentID
-            JOIN Study st2 ON g.ClassID = st2.ClassID
+            JOIN Study st2 ON st.StudentID = st2.StudentID
             JOIN Course c ON st2.CourseID = c.CourseID
             JOIN [Subject] su ON c.SubjectID = su.SubjectID
             JOIN Slot s ON c.CourseID = s.CourseID
@@ -71,8 +70,7 @@ public class AttendanceReportDAO extends DBContext {
                 COUNT(s.SlotNumber) AS TotalSlots,
                 SUM(CASE WHEN a.Status = 0 THEN 1 ELSE 0 END) AS AbsentSlots
             FROM Student st
-            JOIN [Group] g ON st.StudentID = g.StudentID
-            JOIN Study st2 ON g.ClassID = st2.ClassID
+            JOIN Study st2 ON st.StudentID = st2.StudentID
             JOIN Course c ON st2.CourseID = c.CourseID
             JOIN [Subject] su ON c.SubjectID = su.SubjectID
             JOIN Slot s ON c.CourseID = s.CourseID

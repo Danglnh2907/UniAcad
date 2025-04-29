@@ -76,3 +76,4 @@ public class PaymentServlet extends HttpServlet {
         response.getWriter().write(gson.toJson(responseJson));
     }
 }
+

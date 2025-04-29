@@ -13,12 +13,6 @@ import java.util.Objects;
 @Setter
 @Embeddable
 public class AttendentId implements Serializable {
-    public AttendentId(String studentID, Integer courseID, Integer slotNumber) {
-        this.studentID = studentID;
-        this.courseID = courseID;
-        this.slotNumber = slotNumber;
-    }
-
     private static final long serialVersionUID = -3383283253138944237L;
     @Column(name = "StudentID", nullable = false, length = 8)
     private String studentID;
@@ -28,10 +22,6 @@ public class AttendentId implements Serializable {
 
     @Column(name = "SlotNumber", nullable = false)
     private Integer slotNumber;
-
-    public AttendentId() {
-
-    }
 
     @Override
     public boolean equals(Object o) {

@@ -13,22 +13,9 @@ import java.util.Set;
 @Setter
 @Entity
 @Table(name = "Student", schema = "dbo", uniqueConstraints = {
-        @UniqueConstraint(name = "UQ__Student__BF5D2EF57915C17E", columnNames = {"StudentEmail", "StudentSSN"})
+        @UniqueConstraint(name = "UQ__Student__BF5D2EF573D6FC67", columnNames = {"StudentEmail", "StudentSSN"})
 })
 public class Student {
-    public Student(String studentID, String studentEmail, String studentName, LocalDate studentDoB, Boolean studentGender, String studentSSN, String address, Integer studentStatus, String studentPhone, Curriculum curriculumID) {
-        this.studentID = studentID;
-        this.studentEmail = studentEmail;
-        this.studentName = studentName;
-        this.studentDoB = studentDoB;
-        this.studentGender = studentGender;
-        this.studentSSN = studentSSN;
-        this.address = address;
-        this.studentPhone = studentPhone;
-        this.studentStatus = studentStatus;
-        this.curriculumID = curriculumID;
-    }
-
     @Id
     @Column(name = "StudentID", nullable = false, length = 8)
     private String studentID;
@@ -69,13 +56,26 @@ public class Student {
     private Set<Fee> fees = new LinkedHashSet<>();
 
     @OneToMany(mappedBy = "studentID")
-    private Set<Grade> grades = new LinkedHashSet<>();
-
-    @OneToMany(mappedBy = "studentID")
     private Set<GradeReport> gradeReports = new LinkedHashSet<>();
 
+    @OneToMany(mappedBy = "studentID")
+    private Set<Mark> marks = new LinkedHashSet<>();
+
     @ManyToMany
-    private Set<Class> classFields = new LinkedHashSet<>();
+    private Set<Course> courses = new LinkedHashSet<>();
+
+    public Student(String studentID, String studentName, String studentSSN, String studentEmail, String studentPhone, Curriculum curriculumID, Boolean studentGender, String address, LocalDate studentDoB, Integer studentStatus) {
+        this.studentID = studentID;
+        this.studentName = studentName;
+        this.studentSSN = studentSSN;
+        this.studentEmail = studentEmail;
+        this.studentPhone = studentPhone;
+        this.curriculumID = curriculumID;
+        this.studentGender = studentGender;
+        this.address = address;
+        this.studentDoB = studentDoB;
+        this.studentStatus = studentStatus;
+    }
 
     public Student() {
 

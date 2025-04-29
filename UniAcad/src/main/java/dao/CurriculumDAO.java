@@ -38,19 +38,12 @@ public class CurriculumDAO extends DBContext {
      * Maps a ResultSet to a Curriculum object.
      */
     private Curriculum resultMap(ResultSet resultSet) throws SQLException {
-        if (!resultSet.next()) {
-            return null;
-        }
-
-        // Assume MajorDAO exists to fetch Major details
         MajorDAO majorDAO = new MajorDAO();
         Major major = majorDAO.getMajorById(resultSet.getString("MajorID"));
-
         Curriculum curriculum = new Curriculum();
         curriculum.setCurriculumID(resultSet.getString("CurriculumID"));
         curriculum.setCurriculumName(resultSet.getString("CurriculumName"));
         curriculum.setMajorID(major);
-
         return curriculum;
     }
 
@@ -61,13 +54,17 @@ public class CurriculumDAO extends DBContext {
         String query = "SELECT * FROM Curriculum WHERE CurriculumID = ?";
         try (PreparedStatement statement = getConnection().prepareStatement(query)) {
             statement.setString(1, curriculumId);
-            ResultSet resultSet = statement.executeQuery();
-            return resultMap(resultSet);
+            try (ResultSet rs = statement.executeQuery()) {
+                if (rs.next()) {
+                    return resultMap(rs); // ✅ Gọi sau khi đã rs.next()
+                }
+            }
         } catch (SQLException e) {
             logger.error("Error retrieving curriculum by ID: {}", curriculumId, e);
         }
         return null;
     }
+
 
     /**
      * Retrieves all curricula.
