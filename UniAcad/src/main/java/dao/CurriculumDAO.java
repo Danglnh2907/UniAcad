@@ -170,4 +170,19 @@ public class CurriculumDAO extends DBContext {
             System.out.println("No curriculum found with ID: " + curriculumId);
         }
     }
+
+    public List<String> getAllCurriculumID() {
+        List<String> ids = new ArrayList<>();
+        String sql = "SELECT CurriculumID FROM Curriculum";
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                ids.add(rs.getString("CurriculumID"));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error retrieving CurriculumIDs", e);
+        }
+        return ids;
+    }
 }

@@ -1,6 +1,7 @@
 package util.service.excel;
 
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.util.CellRangeAddressList;
 import org.apache.poi.xssf.streaming.SXSSFSheet;
 import org.apache.poi.xssf.usermodel.*;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
@@ -9,6 +10,8 @@ import org.slf4j.LoggerFactory;
 import util.service.file.FileService;
 
 import java.io.*;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.regex.Pattern;
 
@@ -21,6 +24,7 @@ public class ExcelService {
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
     private static final int MAX_ROWS_PER_BATCH = 1000;
     private static final int MAX_SHEET_COLUMNS = 16384;
+    private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("dd/MM/yyyy");
 
     private final FileService fileService;
 
@@ -81,38 +85,82 @@ public class ExcelService {
         }
         validateColumnConfigs(columnConfigs, null);
 
-        SXSSFWorkbook workbook = null;
-        try (ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
-            workbook = new SXSSFWorkbook(100);
+        try (SXSSFWorkbook workbook = new SXSSFWorkbook(100);
+             ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
+
             SXSSFSheet sheet = workbook.createSheet("Template");
 
-            for (ColumnConfig config : columnConfigs) {
-                sheet.trackColumnsForAutoSizing(Arrays.asList(config.columnIndex));
-            }
+            // 🎨 Tạo style header
+            XSSFCellStyle headerStyle = workbook.getXSSFWorkbook().createCellStyle();
+            XSSFFont headerFont = workbook.getXSSFWorkbook().createFont();
+            headerFont.setBold(true);
+            headerFont.setColor(IndexedColors.WHITE.getIndex());
+            headerFont.setFontHeightInPoints((short) 12);
+            headerStyle.setFont(headerFont);
+            headerStyle.setFillForegroundColor(IndexedColors.DARK_BLUE.getIndex());
+            headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            headerStyle.setBorderBottom(BorderStyle.THIN);
+            headerStyle.setBorderTop(BorderStyle.THIN);
+            headerStyle.setBorderLeft(BorderStyle.THIN);
+            headerStyle.setBorderRight(BorderStyle.THIN);
+            headerStyle.setAlignment(HorizontalAlignment.CENTER);
 
+            Drawing<?> drawing = sheet.createDrawingPatriarch();
+            CreationHelper creationHelper = workbook.getXSSFWorkbook().getCreationHelper();
+
+            // 📝 Tạo các dòng
             Row headerRow = sheet.createRow(0);
+            Row instructionRow = sheet.createRow(1);
+
             for (ColumnConfig config : columnConfigs) {
-                Cell cell = headerRow.createCell(config.columnIndex);
-                cell.setCellValue(config.name);
-                sheet.autoSizeColumn(config.columnIndex);
+                int colIdx = config.columnIndex;
+
+                // Tên cột
+                Cell headerCell = headerRow.createCell(colIdx);
+                headerCell.setCellValue(config.name + (config.required ? " *" : ""));
+                headerCell.setCellStyle(headerStyle);
+
+                // Gán comment nếu có
+                if (config.description != null && !config.description.isEmpty()) {
+                    ClientAnchor anchor = creationHelper.createClientAnchor();
+                    anchor.setCol1(colIdx);
+                    anchor.setCol2(colIdx + 3);
+                    anchor.setRow1(0);
+                    anchor.setRow2(3);
+                    Comment comment = drawing.createCellComment(anchor);
+                    comment.setString(creationHelper.createRichTextString(config.description));
+                    headerCell.setCellComment(comment);
+                }
+
+                // Ví dụ dữ liệu
+                Cell sampleCell = instructionRow.createCell(colIdx);
+                sampleCell.setCellValue("e.g. " + getSampleValue(config.type));
+                sheet.trackColumnsForAutoSizing(List.of(colIdx));
+                sheet.autoSizeColumn(colIdx);
+
+                // 📋 Dropdown nếu có
+                if (config.hasDropdown()) {
+                    DataValidationHelper helper = sheet.getDataValidationHelper();
+                    DataValidationConstraint constraint = helper.createExplicitListConstraint(
+                            config.dropdownValues.toArray(new String[0])
+                    );
+                    CellRangeAddressList range = new CellRangeAddressList(2, 1000, colIdx, colIdx);
+                    DataValidation validation = helper.createValidation(constraint, range);
+                    validation.setShowErrorBox(true);
+                    sheet.addValidationData(validation);
+                }
             }
 
-            Row sampleRow = sheet.createRow(1);
-            for (ColumnConfig config : columnConfigs) {
-                Cell cell = sampleRow.createCell(config.columnIndex);
-                cell.setCellValue(getSampleValue(config.type));
-                sheet.autoSizeColumn(config.columnIndex);
-            }
+            // 📌 Freeze dòng tiêu đề
+            sheet.createFreezePane(0, 2);
 
+            // 💾 Ghi file
             workbook.write(bos);
-            if (!fileService.saveFile(fileName, bos.toByteArray(), FileService.FileType.EXCEL, true)) {
+            if (!fileService.saveFile(fileName, bos.toByteArray(), FileService.FileType.EXCEL, false)) {
                 throw new IOException("Failed to save template via FileService");
             }
-            logger.info("Template generated: {}", fileName);
-        } finally {
-            if (workbook != null) {
-                workbook.dispose();
-            }
+
+            logger.info("Template created: {}", fileName);
         }
     }
 
@@ -124,20 +172,40 @@ public class ExcelService {
 
         List<ColumnConfig> configs = new ArrayList<>();
         for (Cell cell : headerRow) {
-            String name = cell.getCellType() == CellType.STRING ? cell.getStringCellValue().trim() : "Column" + cell.getColumnIndex();
-            if (name.isEmpty()) name = "Column" + cell.getColumnIndex();
-            DataType type = inferDataType(cell);
-            configs.add(new ColumnConfig(cell.getColumnIndex(), name, type, false, null));
+            String rawName = cell.getCellType() == CellType.STRING ? cell.getStringCellValue().trim() : "Column" + cell.getColumnIndex();
+            if (rawName.isEmpty()) rawName = "Column" + cell.getColumnIndex();
+            // Loại bỏ ký tự '*' và khoảng trắng thừa trong tên cột
+            String name = rawName.replaceAll("[\\s\\*]+", "");
+            DataType type = inferDataType(cell, name);
+            // Đánh dấu các cột có '*' là required
+            boolean required = rawName.contains("*");
+            configs.add(new ColumnConfig(cell.getColumnIndex(), name, type, required, null));
         }
         logger.info("Inferred {} column configurations from header", configs.size());
         return configs;
     }
 
-    private DataType inferDataType(Cell cell) {
+    private DataType inferDataType(Cell cell, String columnName) {
         if (cell == null) return DataType.STRING;
+
+        // Dựa vào tên cột để suy ra kiểu dữ liệu nếu có gợi ý
+        String normalizedName = columnName.toLowerCase();
+        if (normalizedName.contains("email")) return DataType.EMAIL;
+        if (normalizedName.contains("gender") || normalizedName.contains("sex")) return DataType.BOOLEAN;
+        if (normalizedName.contains("dob") || normalizedName.contains("date") || normalizedName.contains("birth")) return DataType.DATE;
+
+        // Dựa vào giá trị ô
         switch (cell.getCellType()) {
             case STRING:
-                return EMAIL_PATTERN.matcher(cell.getStringCellValue()).matches() ? DataType.EMAIL : DataType.STRING;
+                String value = cell.getStringCellValue().trim();
+                if (EMAIL_PATTERN.matcher(value).matches()) return DataType.EMAIL;
+                if (value.equalsIgnoreCase("TRUE") || value.equalsIgnoreCase("FALSE")) return DataType.BOOLEAN;
+                try {
+                    DATE_FORMAT.parse(value);
+                    return DataType.DATE;
+                } catch (ParseException e) {
+                    return DataType.STRING;
+                }
             case NUMERIC:
                 return DateUtil.isCellDateFormatted(cell) ? DataType.DATE :
                         cell.getNumericCellValue() == Math.floor(cell.getNumericCellValue()) ? DataType.INTEGER : DataType.DOUBLE;
@@ -216,9 +284,29 @@ public class ExcelService {
             case DOUBLE:
                 return cell.getCellType() == CellType.NUMERIC ? cell.getNumericCellValue() : null;
             case DATE:
-                return cell.getCellType() == CellType.NUMERIC && DateUtil.isCellDateFormatted(cell) ? cell.getDateCellValue() : null;
+                if (cell.getCellType() == CellType.NUMERIC && DateUtil.isCellDateFormatted(cell)) {
+                    return cell.getDateCellValue();
+                } else if (cell.getCellType() == CellType.STRING) {
+                    String dateStr = cell.getStringCellValue().trim();
+                    try {
+                        return DATE_FORMAT.parse(dateStr);
+                    } catch (ParseException e) {
+                        logger.debug("Invalid date format at row {}, column {}: {}", rowIdx + 1, config.columnIndex, dateStr);
+                        return null;
+                    }
+                }
+                return null;
             case BOOLEAN:
-                return cell.getCellType() == CellType.BOOLEAN ? cell.getBooleanCellValue() : null;
+                if (cell.getCellType() == CellType.BOOLEAN) {
+                    return cell.getBooleanCellValue();
+                } else if (cell.getCellType() == CellType.STRING) {
+                    String boolStr = cell.getStringCellValue().trim().toLowerCase();
+                    if ("true".equals(boolStr) || "1".equals(boolStr)) return true;
+                    if ("false".equals(boolStr) || "0".equals(boolStr)) return false;
+                    logger.debug("Invalid boolean format at row {}, column {}: {}", rowIdx + 1, config.columnIndex, boolStr);
+                    return null;
+                }
+                return null;
             case IMAGE:
                 String key = rowIdx + "_" + cell.getColumnIndex();
                 XSSFPictureData picData = pictures.get(key);
@@ -266,7 +354,7 @@ public class ExcelService {
             case EMAIL: return "example@domain.com";
             case INTEGER: return "123";
             case DOUBLE: return "123.45";
-            case DATE: return "1/1/2023";
+            case DATE: return "01/01/2023";
             case BOOLEAN: return "TRUE";
             case IMAGE: return "Insert image here";
             default: return "";
@@ -285,13 +373,29 @@ public class ExcelService {
         public final DataType type;
         public final boolean required;
         public final ColumnValidator validator;
+        public final List<String> dropdownValues;
+        public final String description; // 💬 Mô tả (tooltip)
 
         public ColumnConfig(int columnIndex, String name, DataType type, boolean required, ColumnValidator validator) {
+            this(columnIndex, name, type, required, validator, null, null);
+        }
+
+        public ColumnConfig(int columnIndex, String name, DataType type, boolean required, ColumnValidator validator, List<String> dropdownValues) {
+            this(columnIndex, name, type, required, validator, dropdownValues, null);
+        }
+
+        public ColumnConfig(int columnIndex, String name, DataType type, boolean required, ColumnValidator validator, List<String> dropdownValues, String description) {
             this.columnIndex = columnIndex;
             this.name = name;
             this.type = type;
             this.required = required;
             this.validator = validator;
+            this.dropdownValues = dropdownValues;
+            this.description = description;
+        }
+
+        public boolean hasDropdown() {
+            return dropdownValues != null && !dropdownValues.isEmpty();
         }
     }
 
