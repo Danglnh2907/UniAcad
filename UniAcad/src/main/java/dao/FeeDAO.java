@@ -100,6 +100,17 @@ public class FeeDAO {
         return null;
     }
 
+    public boolean delete(Integer feeId) {
+        String sql = "DELETE FROM Fee WHERE FeeID = ?";
+        try (Connection conn = DBContext.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, feeId);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            throw new RuntimeException("Error deleting Fee by ID", e);
+        }
+    }
+
     private Fee mapResultSetToFee(ResultSet rs) throws SQLException {
         Fee fee = new Fee();
         fee.setId(rs.getInt("FeeID"));
@@ -108,9 +119,14 @@ public class FeeDAO {
         student.setStudentID(rs.getString("StudentID"));
         fee.setStudentID(student);
 
-        Term term = new Term();
-        term.setTermID(rs.getString("TermID"));
-        fee.setTermID(term);
+        String termId = rs.getString("TermID");
+        if (termId != null) {
+            Term term = new Term();
+            term.setTermID(termId);
+            fee.setTermID(term);
+        } else {
+            fee.setTermID(null);
+        }
 
         fee.setAmount(rs.getBigDecimal("Amount"));
 

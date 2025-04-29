@@ -38,19 +38,13 @@ public class CurriculumDAO extends DBContext {
      * Maps a ResultSet to a Curriculum object.
      */
     private Curriculum resultMap(ResultSet resultSet) throws SQLException {
-        if (!resultSet.next()) {
-            return null;
-        }
-
-        // Assume MajorDAO exists to fetch Major details
+        // Không .next() ở đây
         MajorDAO majorDAO = new MajorDAO();
         Major major = majorDAO.getMajorById(resultSet.getString("MajorID"));
-
         Curriculum curriculum = new Curriculum();
         curriculum.setCurriculumID(resultSet.getString("CurriculumID"));
         curriculum.setCurriculumName(resultSet.getString("CurriculumName"));
         curriculum.setMajorID(major);
-
         return curriculum;
     }
 

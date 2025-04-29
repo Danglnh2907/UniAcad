@@ -20,13 +20,11 @@ public class ScheduleDAO extends DBContext {
         String sql = "SELECT su.SubjectName, r.RoomID, s.StartTime, s.Duration, a.Status " +
                 "FROM Slot s " +
                 "JOIN Course c ON s.CourseID = c.CourseID " +
-                "JOIN Subject su ON c.SubjectID = su.SubjectID " +
+                "JOIN [Subject] su ON c.SubjectID = su.SubjectID " +
                 "JOIN Study st ON c.CourseID = st.CourseID " +
-                "JOIN [Group] g ON st.ClassID = g.ClassID " +
-                "JOIN Class cl ON g.ClassID = cl.ClassID " +
                 "JOIN Room r ON s.RoomID = r.RoomID " +
-                "LEFT JOIN Attendent a ON a.StudentID = g.StudentID AND a.CourseID = s.CourseID AND a.SlotNumber = s.SlotNumber " +
-                "WHERE g.StudentID = ? " +
+                "LEFT JOIN Attendent a ON a.StudentID = st.StudentID AND a.CourseID = s.CourseID AND a.SlotNumber = s.SlotNumber " +
+                "WHERE st.StudentID = ? " +
                 "AND s.StartTime >= ? AND s.StartTime < ? " +
                 "AND c.CourseStatus = 0 " +
                 "ORDER BY s.StartTime";
@@ -54,6 +52,7 @@ public class ScheduleDAO extends DBContext {
         }
         return schedule;
     }
+
 
     public static void main(String[] args) {
         try {
