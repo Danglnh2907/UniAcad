@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My Mark Report</title>
+    <script src="markReport.js" defer></script>
+    <style>
+        table, th, td { border: 1px solid black; border-collapse: collapse; }
+        th, td { padding: 8px; }
+    </style>
+</head>
+<body>
+<h2>📘 My Mark Report</h2>
+<button onclick="fetchMarkReport()">Load Mark Report</button>
+
+<table id="reportTable" style="margin-top:20px; display:none;">
+    <thead>
+    <tr>
+        <th>Student ID</th>
+        <th>Name</th>
+        <th>Subject</th>
+        <th>Mark</th>
+        <th>Status</th>
+    </tr>
+    </thead>
+    <tbody id="reportBody"></tbody>
+</table>
+
+<div id="noData" style="color:red; display:none;">No data found or not logged in.</div>
+</body>
+</html>
