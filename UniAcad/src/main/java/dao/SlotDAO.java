@@ -1,5 +1,6 @@
 package dao;
 
+import model.database.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.service.database.DBContext;
@@ -44,7 +45,7 @@ public class SlotDAO extends DBContext {
 
         // Gán Course
         Course course = new Course();
-        course.setCourseID(resultSet.getInt("CourseID"));
+        course.setId(resultSet.getInt("CourseID"));
         slot.setCourseID(course);
 
         // Gán Teacher

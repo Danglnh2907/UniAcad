@@ -1,5 +1,7 @@
 package dao;
 
+import model.database.Curriculum;
+import model.database.Student;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.service.database.DBContext;
@@ -58,17 +60,18 @@ public class StudentDAO extends DBContext {
 
         return new Student(
                 rs.getString("StudentID"),
-                rs.getString("StudentEmail"),
                 rs.getString("StudentName"),
-                rs.getDate("StudentDoB").toLocalDate(),
-                rs.getBoolean("StudentGender"),
                 rs.getString("StudentSSN"),
-                rs.getString("Address"),
-                rs.getInt("StudentStatus"),
+                rs.getString("StudentEmail"),
                 rs.getString("StudentPhone"),
-                curriculum
+                curriculum,
+                rs.getBoolean("StudentGender"),
+                rs.getString("Address"), // cột Address (không phải StudentAddress nhé)
+                rs.getDate("StudentDoB").toLocalDate(), // convert từ java.sql.Date -> LocalDate
+                rs.getObject("StudentStatus", Integer.class) // đọc nullable Integer
         );
     }
+
 
     public Student getStudentByEmail(String email) {
         String query = "SELECT * FROM Student WHERE StudentEmail = ?";

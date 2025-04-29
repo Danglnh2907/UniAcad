@@ -64,4 +64,20 @@ public class Student {
     @ManyToMany
     private Set<Course> courses = new LinkedHashSet<>();
 
+    public Student(String studentID, String studentName, String studentSSN, String studentEmail, String studentPhone, Curriculum curriculumID, Boolean studentGender, String address, LocalDate studentDoB, Integer studentStatus) {
+        this.studentID = studentID;
+        this.studentName = studentName;
+        this.studentSSN = studentSSN;
+        this.studentEmail = studentEmail;
+        this.studentPhone = studentPhone;
+        this.curriculumID = curriculumID;
+        this.studentGender = studentGender;
+        this.address = address;
+        this.studentDoB = studentDoB;
+        this.studentStatus = studentStatus;
+    }
+
+    public Student() {
+
+    }
 }

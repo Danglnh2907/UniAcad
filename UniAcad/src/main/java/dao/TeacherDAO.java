@@ -1,5 +1,7 @@
 package dao;
 
+import model.database.Department;
+import model.database.Teacher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.service.database.DBContext;

@@ -2,6 +2,8 @@ package util.service.payment;
 
 import dao.FeeDAO;
 import dao.PaymentDAO;
+import model.database.Fee;
+import model.database.Payment;
 import util.service.database.DBContext;
 
 import java.math.BigDecimal;

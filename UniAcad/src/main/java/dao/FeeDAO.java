@@ -1,5 +1,8 @@
 package dao;
 
+import model.database.Fee;
+import model.database.Student;
+import model.database.Term;
 import util.service.database.DBContext;
 
 import java.sql.*;
