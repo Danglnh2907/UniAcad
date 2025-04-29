@@ -17,6 +17,9 @@ public class Room {
     private String roomID;
 
     @OneToMany(mappedBy = "roomID")
+    private Set<Exam> exams = new LinkedHashSet<>();
+
+    @OneToMany(mappedBy = "roomID")
     private Set<Slot> slots = new LinkedHashSet<>();
 
 }

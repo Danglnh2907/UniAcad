@@ -37,8 +37,8 @@ public class Main {
 //            System.out.println("✅ Template generated: " + templateFileName);
 
             // Step 2: Read and validate data from an Excel file
-            String excelFileName = "data.xlsx"; // Ensure this file exists
-            File excelFile = new File(fileService.getFilePath(excelFileName, "xlsx"));
+            String excelFileName = "data"; // Ensure this file exists
+            File excelFile = new File(fileService.getAbsolutePath(excelFileName, FileService.FileType.EXCEL));
             if (!excelFile.exists()) {
                 System.out.println("⚠️ Excel file not found: " + excelFileName);
                 System.out.println("Please create and fill the file based on the generated template.");

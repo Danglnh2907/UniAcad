@@ -1,14 +1,10 @@
 package dao;
 
-import model.database.Curriculum;
-import model.database.Student;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.service.database.DBContext;
 
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
 
 public class StudentDAO extends DBContext {
     private static final Logger logger = LoggerFactory.getLogger(StudentDAO.class);

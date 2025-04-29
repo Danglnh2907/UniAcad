@@ -1,6 +1,5 @@
 package dao;
 
-import model.database.Staff;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.service.database.DBContext;

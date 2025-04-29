@@ -1,10 +1,5 @@
 package dao;
 
-import model.database.Course;
-import model.database.Room;
-import model.database.Slot;
-import model.database.SlotId;
-import model.database.Teacher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.service.database.DBContext;

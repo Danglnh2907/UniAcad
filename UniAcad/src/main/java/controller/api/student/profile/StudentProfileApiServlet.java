@@ -1,23 +1,19 @@
 package controller.api.student.profile;
 
 import com.google.gson.*;
-import com.google.gson.reflect.TypeToken;
 import dao.StudentDAO;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import model.database.Student;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.lang.reflect.Type;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 
 @WebServlet(name = "StudentProfileApiServlet", urlPatterns = {"/api/student/profile"})
 public class StudentProfileApiServlet extends HttpServlet {

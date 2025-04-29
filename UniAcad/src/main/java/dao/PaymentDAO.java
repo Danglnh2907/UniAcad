@@ -1,6 +1,5 @@
 package dao;
 
-import model.database.Payment;
 import util.service.database.DBContext;
 
 import java.math.BigDecimal;
