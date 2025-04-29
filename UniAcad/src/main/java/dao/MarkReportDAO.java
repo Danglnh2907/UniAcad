@@ -1,122 +1,138 @@
 package dao;
-
 import model.datasupport.MarkReport;
 import util.service.database.DBContext;
 
-import java.sql.*;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.*;
+import java.util.logging.Logger;
 
 public class MarkReportDAO extends DBContext {
+    private static final Logger logger = Logger.getLogger(MarkReportDAO.class.getName());
 
     public MarkReportDAO() {
         super();
     }
 
-    /**
-     * Lấy bảng điểm tất cả sinh viên.
-     */
-    public List<MarkReport> getMarkReports() {
-        List<MarkReport> reports = new ArrayList<>();
+    public MarkReport getMarkReport(String studentId, String subjectId) {
         String sql = """
-            SELECT
-                st.StudentID,
-                st.StudentName,
-                su.SubjectName,
-                ISNULL(gr.Mark, 0) AS Mark
-            FROM Student st
-            JOIN Study st2 ON st.StudentID = st2.StudentID
-            JOIN Course c ON st2.CourseID = c.CourseID
-            JOIN [Subject] su ON c.SubjectID = su.SubjectID
-            LEFT JOIN GradeReport gr ON gr.StudentID = st.StudentID AND gr.SubjectID = su.SubjectID
-            """;
+            SELECT 
+                st.StudentID, 
+                su.SubjectID, 
+                su.SubjectName, 
+                gr.Mark AS AverageMark, 
+                g.GradeName, 
+                m.Mark AS GradeMark
+            FROM Course c
+            INNER JOIN Grade g ON c.CourseID = g.CourseID
+            INNER JOIN GradeReport gr ON c.SubjectID = gr.SubjectID
+            INNER JOIN Mark m ON g.GradeID = m.GradeID
+            INNER JOIN Student st ON gr.StudentID = st.StudentID AND m.StudentID = st.StudentID
+            INNER JOIN Subject su ON c.SubjectID = su.SubjectID AND gr.SubjectID = su.SubjectID
+            INNER JOIN Term t ON c.TermID = t.TermID AND gr.TermID = t.TermID
+            WHERE st.StudentID = ? AND su.SubjectID = ?
+        """;
 
-        try (PreparedStatement ps = getConnection().prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            while (rs.next()) {
-                reports.add(mapResultSetToMarkReport(rs));
-            }
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return reports;
-    }
-
-    /**
-     * Lấy bảng điểm của sinh viên theo Email.
-     */
-    public List<MarkReport> getMarkReportsByEmail(String email) {
-        List<MarkReport> reports = new ArrayList<>();
-        String sql = """
-            SELECT
-                st.StudentID,
-                st.StudentName,
-                su.SubjectName,
-                ISNULL(gr.Mark, 0) AS Mark
-            FROM Student st
-            JOIN Study st2 ON st.StudentID = st2.StudentID
-            JOIN Course c ON st2.CourseID = c.CourseID
-            JOIN [Subject] su ON c.SubjectID = su.SubjectID
-            LEFT JOIN GradeReport gr ON gr.StudentID = st.StudentID AND gr.SubjectID = su.SubjectID
-            WHERE st.StudentEmail = ?
-            """;
-
-        try (PreparedStatement ps = getConnection().prepareStatement(sql)) {
-            ps.setString(1, email);
-            ResultSet rs = ps.executeQuery();
-
-            while (rs.next()) {
-                reports.add(mapResultSetToMarkReport(rs));
-            }
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return reports;
-    }
-
-    /**
-     * Lấy bảng điểm theo StudentID.
-     */
-    public List<MarkReport> getMarkReportByStudentId(String studentId) {
-        List<MarkReport> reports = new ArrayList<>();
-        String sql = """
-            SELECT
-                st.StudentID,
-                st.StudentName,
-                su.SubjectName,
-                ISNULL(gr.Mark, 0) AS Mark
-            FROM Student st
-            JOIN Study st2 ON st.StudentID = st2.StudentID
-            JOIN Course c ON st2.CourseID = c.CourseID
-            JOIN [Subject] su ON c.SubjectID = su.SubjectID
-            LEFT JOIN GradeReport gr ON gr.StudentID = st.StudentID AND gr.SubjectID = su.SubjectID
-            WHERE st.StudentID = ?
-            """;
-
-        try (PreparedStatement ps = getConnection().prepareStatement(sql)) {
             ps.setString(1, studentId);
+            ps.setString(2, subjectId);
+
             ResultSet rs = ps.executeQuery();
-            while (rs.next())
-            {
-                reports.add(mapResultSetToMarkReport(rs));
+            Map<String, Double> marks = new HashMap<>();
+            String subjectName = null;
+            double averageMark = 0.0;
+            boolean found = false;
+
+            while (rs.next()) {
+                found = true;
+                subjectName = rs.getString("SubjectName");
+                averageMark = rs.getDouble("AverageMark");  // From GradeReport.Mark
+                String gradeName = rs.getString("GradeName");
+                double gradeMark = rs.getDouble("GradeMark");
+
+                if (gradeName != null) {
+                    marks.put(gradeName, gradeMark);
+                }
             }
-            return reports;
+
+            if (found) {
+                return new MarkReport(studentId, subjectId, subjectName, marks, averageMark);
+            }
+
         } catch (SQLException e) {
-            e.printStackTrace();
+            logger.severe("❌ Error fetching mark report for studentId=" + studentId + ", subjectId=" + subjectId + ": " + e.getMessage());
         }
-        return Collections.emptyList();
+
+        return null;
     }
 
-    private MarkReport mapResultSetToMarkReport(ResultSet rs) throws SQLException {
-        String studentId = rs.getString("StudentID");
-        String studentName = rs.getString("StudentName");
-        String subjectName = rs.getString("SubjectName");
-        double mark = rs.getDouble("Mark");
-        String status = mark >= 5.0 ? "Pass" : "Fail";
-        return new MarkReport(studentId, studentName, subjectName, mark, status);
+    public List<MarkReport> getMarkReportsByTermId(String studentId, String termId) {
+        String sql = """
+            SELECT 
+                st.StudentID,
+                su.SubjectID,
+                su.SubjectName,
+                gr.Mark AS AverageMark,
+                g.GradeName,
+                m.Mark AS GradeMark
+            FROM Course c
+            INNER JOIN Grade g ON c.CourseID = g.CourseID
+            INNER JOIN GradeReport gr ON c.SubjectID = gr.SubjectID AND c.TermID = gr.TermID
+            INNER JOIN Mark m ON g.GradeID = m.GradeID
+            INNER JOIN Student st ON gr.StudentID = st.StudentID AND m.StudentID = st.StudentID
+            INNER JOIN Subject su ON c.SubjectID = su.SubjectID
+            INNER JOIN Term t ON c.TermID = t.TermID
+            WHERE st.StudentID = ? AND t.TermID = ?
+        """;
+
+        Map<String, MarkReport> reportMap = new LinkedHashMap<>();
+
+        try (Connection conn = getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setString(1, studentId);
+            ps.setString(2, termId);
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                String subjectId = rs.getString("SubjectID");
+                String subjectName = rs.getString("SubjectName");
+                double averageMark = rs.getDouble("AverageMark");
+                String gradeName = rs.getString("GradeName");
+                double gradeMark = rs.getDouble("GradeMark");
+
+                MarkReport report = reportMap.computeIfAbsent(subjectId, sid ->
+                        new MarkReport(studentId, subjectId, subjectName, new HashMap<>(), averageMark)
+                );
+
+                if (gradeName != null) {
+                    report.getMarks().put(gradeName, gradeMark);
+                }
+            }
+
+        } catch (SQLException e) {
+            logger.severe("❌ Error fetching mark reports by studentId=" + studentId + ", termId=" + termId + ": " + e.getMessage());
+        }
+
+        return new ArrayList<>(reportMap.values());
     }
+    public static void main(String[] args) {
+        MarkReportDAO dao = new MarkReportDAO();
+        var report = dao.getMarkReportsByTermId("CE182286", "2310");
+
+        if (report != null) {
+            for (MarkReport r : report) {
+                System.out.println("📘 Subject: " + r.getSubjectName());
+                System.out.println("🎓 Average: " + r.getAverageMark());
+                r.getMarks().forEach((k, v) -> System.out.println(" - " + k + ": " + v));
+            }
+        } else {
+            System.out.println("❌ No report found.");
+        }
+    }
+
 }

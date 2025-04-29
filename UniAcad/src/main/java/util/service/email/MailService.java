@@ -420,7 +420,7 @@ public class MailService {
 
             // Định nghĩa file đính kèm (đường dẫn tương đối từ FILE_STORAGE_PATH)
             List<String> attachmentPaths = List.of(
-                    "xlsx/data.xlsx"
+                    "xlsx/StudentTemplate1.xlsx"
             );
 
             Map<String, String> failedRecipients = mailService.sendPersonalizedWithAttachments(
