@@ -7,9 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.service.file.FileService;
 
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.util.*;
 
 /**
@@ -490,6 +488,45 @@ public class ExcelService {
     }
 
     /**
+     * Generates an Excel template file based on the provided column configurations.
+     *
+     * @param fileName      the name of the Excel template file (e.g., "student_template.xlsx")
+     * @param columnConfigs the list of column configurations to use as headers
+     * @throws IOException if there is an error during file writing
+     */
+    public void generateExcelTemplate(String fileName, List<ColumnConfig> columnConfigs) throws IOException {
+        if (columnConfigs == null || columnConfigs.isEmpty()) {
+            throw new IllegalArgumentException("Column configurations cannot be null or empty when generating template.");
+        }
+
+        XSSFWorkbook workbook = new XSSFWorkbook();
+        XSSFSheet sheet = workbook.createSheet("Template");
+
+        Row headerRow = sheet.createRow(0);
+        for (int i = 0; i < columnConfigs.size(); i++) {
+            ColumnConfig config = columnConfigs.get(i);
+            Cell cell = headerRow.createCell(i);
+            cell.setCellValue(config.getName());
+            sheet.autoSizeColumn(i);
+        }
+
+        // Thay vì tự mở FileOutputStream, ta lưu workbook ra byte array, rồi giao cho FileService
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream()) {
+            workbook.write(bos);
+            workbook.close();
+
+            byte[] excelBytes = bos.toByteArray();
+            boolean saved = fileService.saveFileXlsx(fileName, excelBytes);
+
+            if (!saved) {
+                throw new IOException("Failed to save Excel template using FileService");
+            }
+            logger.info("Thread {}: Successfully generated Excel template: {}", Thread.currentThread().getName(), fileName);
+        }
+    }
+
+
+    /**
      * Demo main method for testing ExcelService functionality.
      * Reads a sample Excel file with specified file name, starting from a given row.
      *
@@ -515,14 +552,13 @@ public class ExcelService {
                 new ColumnConfig(12, "StudentPhone", DataType.STRING, true),
                 new ColumnConfig(13, "CurriculumID", DataType.STRING, true)
         );
-        int startRow = 2; // Start reading from row 3 (skip title and header)
+        String templateFileName = "student_template.xlsx";
         try {
-            ExcelProcessingResult result = excelService.processExcelFile(filename, columnConfigs, startRow);
-            for (Map<String, Object> row : result.getData()) {
-
-            }
+            excelService.generateExcelTemplate(templateFileName, columnConfigs);
+            System.out.println("Excel template generated and saved successfully: " + templateFileName);
         } catch (IOException e) {
-            logger.error("Error processing Excel file: {}", e.getMessage(), e);
+            e.printStackTrace();
         }
+
     }
 }
