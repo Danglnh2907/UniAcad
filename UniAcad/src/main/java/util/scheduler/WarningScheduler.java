@@ -5,7 +5,7 @@ import jakarta.ejb.Schedule;
 import jakarta.inject.Inject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import util.service.warning.WarningService;
+import dao.WarningDAO;
 import util.service.email.EmailTemplateService;
 import jakarta.servlet.ServletContext;
 import java.util.List;
@@ -17,7 +17,7 @@ public class WarningScheduler {
     private static final Logger logger = LoggerFactory.getLogger(WarningScheduler.class);
 
     @Inject
-    private WarningService warningService;
+    private WarningDAO warningDAO;
 
     @Inject
     private ServletContext servletContext;  // inject servlet context để dùng trong EmailTemplateService
@@ -27,7 +27,7 @@ public class WarningScheduler {
         logger.info("[WarningScheduler] Running scheduled task to check warnings...");
 
         try {
-            List<WarningInfo> warningList = warningService.getWarnings();
+            List<WarningInfo> warningList = warningDAO.getWarnings();
             if (warningList.isEmpty()) {
                 logger.info("[WarningScheduler] No warning detected. Nothing to send.");
                 return;

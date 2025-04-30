@@ -5,7 +5,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
 import model.datasupport.WarningInfo;
-import util.service.warning.WarningService;
+import dao.WarningDAO;
 
 import java.io.IOException;
 import java.util.List;
@@ -17,7 +17,7 @@ public class WarningServlet extends HttpServlet {
 
     private static final Logger LOGGER = Logger.getLogger(WarningServlet.class.getName());
 
-    private final WarningService warningService = new WarningService();
+    private final WarningDAO warningDAO = new WarningDAO();
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
@@ -36,7 +36,7 @@ public class WarningServlet extends HttpServlet {
 
         List<WarningInfo> warnings;
         try {
-            warnings = warningService.getWarningsByEmail(email);
+            warnings = warningDAO.getWarningsByEmail(email);
         } catch (Exception e) {
             LOGGER.log(Level.SEVERE, "❌ Failed to fetch warnings", e);
             resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);

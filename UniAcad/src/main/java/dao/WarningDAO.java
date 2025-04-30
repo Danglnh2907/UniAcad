@@ -1,4 +1,4 @@
-package util.service.warning;
+package dao;
 
 import model.datasupport.WarningInfo;
 import util.service.database.DBContext;
@@ -9,10 +9,10 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 
-public class WarningService extends DBContext {
-    private static final Logger logger = LoggerFactory.getLogger(WarningService.class);
+public class WarningDAO extends DBContext {
+    private static final Logger logger = LoggerFactory.getLogger(WarningDAO.class);
 
-    public WarningService() {
+    public WarningDAO() {
         super();
     }
 

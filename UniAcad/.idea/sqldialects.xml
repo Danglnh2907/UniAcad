@@ -4,7 +4,7 @@
     <file url="file://$PROJECT_DIR$/src/main/java/dao/AttendanceReportDAO.java" dialect="GenericSQL" />
     <file url="file://$PROJECT_DIR$/src/main/java/dao/GradeReportDAO.java" dialect="GenericSQL" />
     <file url="file://$PROJECT_DIR$/src/main/java/dao/ScheduleDAO.java" dialect="GenericSQL" />
+    <file url="file://$PROJECT_DIR$/src/main/java/dao/WarningDAO.java" dialect="GenericSQL" />
     <file url="file://$PROJECT_DIR$/src/main/java/util/service/database/DBContext.java" dialect="GenericSQL" />
-    <file url="file://$PROJECT_DIR$/src/main/java/util/service/warning/WarningService.java" dialect="GenericSQL" />
   </component>
 </project>

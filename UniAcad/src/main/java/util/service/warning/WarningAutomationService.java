@@ -1,5 +1,6 @@
 package util.service.warning;
 
+import dao.WarningDAO;
 import model.datasupport.WarningInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,20 +18,20 @@ public class WarningAutomationService {
 
     private static final Logger logger = LoggerFactory.getLogger(WarningAutomationService.class);
 
-    private WarningService warningService;
+    private WarningDAO warningDAO;
     private EmailTemplateService emailTemplateService;
 
     public WarningAutomationService() {
         // Khởi tạo rỗng để cho phép inject bằng tay sau
     }
 
-    public WarningAutomationService(WarningService warningService, EmailTemplateService emailTemplateService) {
-        this.warningService = warningService;
+    public WarningAutomationService(WarningDAO warningDAO, EmailTemplateService emailTemplateService) {
+        this.warningDAO = warningDAO;
         this.emailTemplateService = emailTemplateService;
     }
 
-    public void setWarningService(WarningService warningService) {
-        this.warningService = warningService;
+    public void setWarningService(WarningDAO warningDAO) {
+        this.warningDAO = warningDAO;
     }
 
     public void setEmailTemplateService(EmailTemplateService emailTemplateService) {
@@ -42,7 +43,7 @@ public class WarningAutomationService {
      */
     public void processWarnings() {
         try {
-            List<WarningInfo> warnings = warningService.getWarnings();
+            List<WarningInfo> warnings = warningDAO.getWarnings();
 
             if (warnings.isEmpty()) {
                 logger.info("No warnings to process.");

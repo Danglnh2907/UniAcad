@@ -5,7 +5,7 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
 import util.service.email.EmailTemplateService;
 import util.service.warning.WarningAutomationService;
-import util.service.warning.WarningService;
+import dao.WarningDAO;
 
 import java.io.IOException;
 
@@ -20,11 +20,11 @@ public class WarningTriggerServlet extends HttpServlet {
         resp.setContentType("text/plain;charset=UTF-8");
 
         try {
-            WarningService warningService = new WarningService();
+            WarningDAO warningDAO = new WarningDAO();
             EmailTemplateService emailService = new EmailTemplateService(req.getServletContext());
 
             WarningAutomationService automation = new WarningAutomationService();
-            automation.setWarningService(warningService);
+            automation.setWarningService(warningDAO);
             automation.setEmailTemplateService(emailService);
 
             automation.processWarnings();
