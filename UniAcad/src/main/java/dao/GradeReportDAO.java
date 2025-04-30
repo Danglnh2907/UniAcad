@@ -76,35 +76,35 @@ public class GradeReportDAO extends DBContext {
 
     public boolean calculateAndSaveAllReports() {
         String sql = """
-            WITH CalculatedMarks AS (
-                SELECT
-                    st.StudentID,
-                    su.SubjectID,
-                    c.TermID,
-                    ROUND(SUM(COALESCE(m.Mark, 0) * g.GradePercent / 100.0), 1) AS FinalMark
-                FROM Student st
-                JOIN Study s ON st.StudentID = s.StudentID
-                JOIN Course c ON s.CourseID = c.CourseID
-                JOIN [Subject] su ON c.SubjectID = su.SubjectID
-                JOIN Grade g ON c.CourseID = g.CourseID
-                LEFT JOIN Mark m ON g.GradeID = m.GradeID AND m.StudentID = st.StudentID
-                GROUP BY st.StudentID, su.SubjectID, c.TermID
-            )
-            SELECT StudentID, SubjectID, TermID, FinalMark
-            FROM CalculatedMarks
-            WHERE FinalMark IS NOT NULL;
-        """;
+                    WITH CalculatedMarks AS (
+                        SELECT
+                            st.StudentID,
+                            su.SubjectID,
+                            c.TermID,
+                            ROUND(SUM(COALESCE(m.Mark, 0) * g.GradePercent / 100.0), 1) AS FinalMark
+                        FROM Student st
+                        JOIN Study s ON st.StudentID = s.StudentID
+                        JOIN Course c ON s.CourseID = c.CourseID
+                        JOIN [Subject] su ON c.SubjectID = su.SubjectID
+                        JOIN Grade g ON c.CourseID = g.CourseID
+                        LEFT JOIN Mark m ON g.GradeID = m.GradeID AND m.StudentID = st.StudentID
+                        GROUP BY st.StudentID, su.SubjectID, c.TermID
+                    )
+                    SELECT StudentID, SubjectID, TermID, FinalMark
+                    FROM CalculatedMarks
+                    WHERE FinalMark IS NOT NULL;
+                """;
 
         String upsert = """
-            MERGE INTO GradeReport AS target
-            USING (SELECT ? AS SubjectID, ? AS StudentID) AS source
-            ON target.SubjectID = source.SubjectID AND target.StudentID = source.StudentID
-            WHEN MATCHED THEN
-                UPDATE SET Mark = ?, TermID = ?, GradeReportStatus = ?
-            WHEN NOT MATCHED THEN
-                INSERT (SubjectID, StudentID, TermID, Mark, GradeReportStatus)
-                VALUES (?, ?, ?, ?, ?);
-        """;
+                    MERGE INTO GradeReport AS target
+                                               USING (SELECT ? AS SubjectID, ? AS StudentID) AS source
+                                               ON target.SubjectID = source.SubjectID AND target.StudentID = source.StudentID
+                                               WHEN MATCHED AND (target.Mark IS NULL OR target.GradeReportStatus IS NULL OR target.GradeReportStatus != 1) THEN
+                                                   UPDATE SET Mark = ?, TermID = ?, GradeReportStatus = ?
+                                               WHEN NOT MATCHED THEN
+                                                   INSERT (SubjectID, StudentID, TermID, Mark, GradeReportStatus)
+                                                   VALUES (?, ?, ?, ?, ?);
+                """;
 
         try (
                 Connection conn = getConnection();

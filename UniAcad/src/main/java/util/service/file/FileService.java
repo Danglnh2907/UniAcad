@@ -14,7 +14,7 @@ import java.util.Optional;
 public class FileService {
     private static final Logger logger = LoggerFactory.getLogger(FileService.class);
 
-    private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    private static final long MAX_FILE_SIZE = 10485760; // 10MB
     private static final String DEFAULT_STORAGE_PATH = "D:\\storage";
 
     private final Path storageRoot;
@@ -164,7 +164,7 @@ public class FileService {
         return storageRoot.resolve(type.getFolder()).resolve(fileName);
     }
 
-    private Path resolveTargetPath(String fileName, FileType type, boolean overwrite) throws IOException {
+    private Path resolveTargetPath(String fileName, FileType type, boolean overwrite) {
         Path base = getPath(fileName, type);
 
         if (overwrite || !Files.exists(base)) {
@@ -219,10 +219,9 @@ public class FileService {
             } else {
                 throw new IOException("Unsupported image format: " + fileName);
             }
-        } else if (type == FileType.TEMPLATE) {
-            if (!lowerCaseName.endsWith(".html")) {
-                throw new IOException("Template must be an HTML file: " + fileName);
-            }
+        } else if (type == FileType.TEMPLATE && !lowerCaseName.endsWith(".html")) {
+            logger.error("Template should be HTML {}", fileName);
+            throw new IOException("Template should be HTML: " + fileName);
         }
     }
 }

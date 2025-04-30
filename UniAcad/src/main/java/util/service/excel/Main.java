@@ -40,7 +40,7 @@ public class Main {
             String excelFileName = "data"; // Ensure this file exists
             File excelFile = new File(fileService.getAbsolutePath(excelFileName, FileService.FileType.EXCEL));
             if (!excelFile.exists()) {
-                System.out.println("⚠️ Excel file not found: " + excelFileName);
+                System.out.println("Excel file not found: " + excelFileName);
                 System.out.println("Please create and fill the file based on the generated template.");
                 return;
             }
@@ -66,7 +66,7 @@ public class Main {
                     System.out.printf("- Row %d, Column %d: %s%n", error.rowIndex, error.columnIndex, error.message);
                 }
             } else {
-                System.out.println("\n✅ No validation errors.");
+                System.out.println("\nNo validation errors.");
             }
 
         } catch (FileNotFoundException e) {

@@ -1,48 +1,75 @@
 package util.service.warning;
 
-import jakarta.ejb.Stateless;
+import model.datasupport.WarningInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import util.service.email.EmailTemplateService;
-import model.datasupport.WarningInfo;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
-import static java.util.stream.Collectors.*;
-
-@Stateless
+/**
+ * Dịch vụ tự động gửi cảnh báo học vụ.
+ * Viết thuần Java, không phụ thuộc JPA hoặc CDI.
+ */
 public class WarningAutomationService {
+
     private static final Logger logger = LoggerFactory.getLogger(WarningAutomationService.class);
-    private final WarningService warningService;
-    private final EmailTemplateService emailTemplateService;
+
+    private WarningService warningService;
+    private EmailTemplateService emailTemplateService;
 
     public WarningAutomationService() {
-        this.warningService = new WarningService();
-        this.emailTemplateService = new EmailTemplateService(null); // ServletContext nếu có
+        // Khởi tạo rỗng để cho phép inject bằng tay sau
     }
 
-    public void processWarnings() {
-        List<WarningInfo> warnings = warningService.getWarnings();
+    public WarningAutomationService(WarningService warningService, EmailTemplateService emailTemplateService) {
+        this.warningService = warningService;
+        this.emailTemplateService = emailTemplateService;
+    }
 
-        // Chia ra: chỉ gửi mail cho những bạn bị "Banned from Exam"
-        List<WarningInfo> bannedWarnings = new ArrayList<>();
-        for (WarningInfo w : warnings) {
-            if ("Banned from Exam".equals(w.getWarningType())) {
-                bannedWarnings.add(w);
-            }
-        }
+    public void setWarningService(WarningService warningService) {
+        this.warningService = warningService;
+    }
+
+    public void setEmailTemplateService(EmailTemplateService emailTemplateService) {
+        this.emailTemplateService = emailTemplateService;
+    }
+
+    /**
+     * Xử lý cảnh báo và gửi email theo từng loại
+     */
+    public void processWarnings() {
         try {
-            if (!bannedWarnings.isEmpty()) {
-                emailTemplateService.sendWarningEmails(bannedWarnings);
+            List<WarningInfo> warnings = warningService.getWarnings();
+
+            if (warnings.isEmpty()) {
+                logger.info("No warnings to process.");
+                return;
             }
+
+            Map<String, List<WarningInfo>> grouped = warnings.stream()
+                    .collect(Collectors.groupingBy(WarningInfo::getWarningType));
+
+            for (Map.Entry<String, List<WarningInfo>> entry : grouped.entrySet()) {
+                String type = entry.getKey();
+                List<WarningInfo> list = entry.getValue();
+
+                if (list.isEmpty()) continue;
+
+                logger.info("Sending {} warning emails for type: {}", list.size(), type);
+                emailTemplateService.sendWarningEmails(list);
+            }
+
         } catch (Exception e) {
-            logger.error("Error sending warning emails: {}", e.getMessage(), e);
+            logger.error("Error processing warnings: {}", e.getMessage(), e);
         }
     }
 
     public void shutdown() {
-        emailTemplateService.shutdown();
+        if (emailTemplateService != null) {
+            emailTemplateService.shutdown();
+        }
     }
 }

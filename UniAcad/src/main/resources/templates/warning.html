@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
 <head>
     <meta charset="UTF-8">
     <title>Academic Warning Notification</title>
@@ -24,6 +24,7 @@
         }
         .email-header h1 {
             color: #d9534f;
+            margin: 0;
         }
         .email-body {
             color: #333;
@@ -31,13 +32,14 @@
             line-height: 1.6;
         }
         .warning-details {
-            background-color: #f2dede;
+            background-color: #fcebea;
+            border: 1px solid #f5c6cb;
             padding: 20px;
             border-radius: 6px;
             margin: 20px 0;
         }
         .warning-details p {
-            margin: 5px 0;
+            margin: 6px 0;
         }
         .footer {
             font-size: 12px;
@@ -54,14 +56,33 @@
     </div>
 
     <div class="email-body">
-        <p>Dear <strong th:text="${name}">Student Name</strong>,</p>
+        <p>
+            Dear <strong th:text="${name}">Student Name</strong>,
+        </p>
 
-        <p>We would like to inform you about an academic issue regarding your performance in the subject <strong th:text="${subject}">Subject Name</strong>.</p>
+        <p>
+            We would like to inform you about an academic issue
+            <span th:if="${subject != null}">
+                in the subject <strong th:text="${subject}">Subject Name</strong>.
+            </span>
+        </p>
 
         <div class="warning-details">
-            <p><strong>Warning Type:</strong> <span th:text="${warningType}">High Absence Warning</span></p>
-            <p><strong>Absent Rate:</strong> <span th:text="${absentRate}">40%</span></p>
-            <p><strong>Current Mark:</strong> <span th:text="${mark}">5.5</span></p>
+            <p th:if="${subject != null}">
+                <strong>Current Subject:</strong> <span th:text="${subject}">Subject Name</span>
+            </p>
+
+            <p>
+                <strong>Warning Type:</strong> <span th:text="${warningType}">Type</span>
+            </p>
+
+            <p th:if="${absentRate != null}">
+                <strong>Absent Rate:</strong> <span th:text="${absentRate}">40%</span>
+            </p>
+
+            <p th:if="${feeAmount != null}">
+                <strong>Outstanding Tuition:</strong> <span th:text="${feeAmount}">$100.00</span>
+            </p>
         </div>
 
         <p>Please take immediate action to improve your attendance and academic performance to avoid further consequences.</p>

@@ -106,10 +106,22 @@ public class EmailTemplateService {
 
             Map<String, Object> emailVars = new HashMap<>();
             emailVars.put("name", warning.getStudentName());
-            emailVars.put("subject", warning.getSubjectName());
             emailVars.put("warningType", warning.getWarningType());
-            emailVars.put("absentRate", String.format("%.2f%%", warning.getAbsentRate() * 100));
-            emailVars.put("mark", String.format("%.1f", warning.getMark()));
+
+            // Nếu có tên môn học (học lực hoặc vắng mặt)
+            if (warning.getSubjectName() != null && !warning.getSubjectName().isBlank()) {
+                emailVars.put("subject", warning.getSubjectName());
+            }
+
+            // Nếu có tỷ lệ vắng mặt > 0
+            if (warning.getAbsentRate() > 0) {
+                emailVars.put("absentRate", String.format("%.2f%%", warning.getAbsentRate() * 100));
+            }
+
+            // Nếu có học phí còn nợ
+            if ("Unpaid Tuition".equals(warning.getWarningType()) && warning.getFeeMoney() != null && warning.getFeeMoney() > 0) {
+                emailVars.put("feeAmount", String.format("$%.2f", warning.getFeeMoney()));
+            }
 
             variables.put(email, emailVars);
         }
@@ -120,12 +132,12 @@ public class EmailTemplateService {
         }
 
         Map<String, String> failedRecipients = mailService.sendPersonalized(
-                "warning",
-                "Academic Warning Notification",
+                "warning", // template name (e.g., warning.html)
+                "Academic Warning Notification", // subject
                 variables,
                 null,
                 null,
-                10
+                10 // max threads
         );
 
         if (failedRecipients.isEmpty()) {
@@ -146,47 +158,35 @@ public class EmailTemplateService {
 
     public static void main(String[] args) {
         try {
-            // Khởi tạo EmailTemplateService (không cần ServletContext khi chạy demo)
             EmailTemplateService emailService = new EmailTemplateService(null);
+
+            // Gửi email chào mừng
             ArrayList<String> emails = new ArrayList<>();
             emails.add("khainhce182286@fpt.edu.vn");
             emails.add("khai1234sd@gmail.com");
             emailService.sendWelcomeEmails(emails);
-//
-//            // Tạo danh sách cảnh báo WarningInfo
-//            List<WarningInfo> warnings = new ArrayList<>();
-//
-//            // Ví dụ một WarningInfo cho demo
-//            WarningInfo warning = new WarningInfo(
-//                    "SE123456",                       // Student ID
-//                    "Nguyen Van A",                   // Student Name
-//                    "Database Systems",               // Subject Name
-//                    8,                                // Absent count
-//                    20,                               // Total slots
-//                    0.4,                              // Absent rate (40%)
-//                    4.2,                              // Mark
-//                    "Banned from Exam"                // Warning Type
-//            );
-//
-//            warnings.add(warning);
 
-            // Gửi email warning
-//            Map<String, String> failedRecipients = emailService.sendWarningEmails(warnings);
+            // Nếu muốn test gửi cảnh báo, bỏ comment đoạn dưới:
+            /*
+            List<WarningInfo> warnings = new ArrayList<>();
+            warnings.add(new WarningInfo(
+                    "SE123456",
+                    "Nguyen Van A",
+                    "Database Systems",
+                    8,
+                    20,
+                    0.4,
+                    4.2,
+                    "Banned from Exam"
+            ));
+            emailService.sendWarningEmails(warnings);
+            */
 
-//            if (failedRecipients.isEmpty()) {
-//                System.out.println("✅ Warning emails sent successfully!");
-//            } else {
-//                System.out.println("❌ Some warning emails failed to send:");
-//                failedRecipients.forEach((email, reason) -> System.out.println(email + ": " + reason));
-//            }
-
-            // Shutdown service
             emailService.shutdown();
 
         } catch (IOException e) {
-            System.err.println("⚠️ Error sending warning emails: " + e.getMessage());
+            System.err.println("⚠️ Error sending emails: " + e.getMessage());
             e.printStackTrace();
         }
     }
-
 }

@@ -7,11 +7,6 @@ public class NormalizationService {
         sb = new StringBuilder();
     }
 
-    /**
-     * Chuẩn hóa họ tên:
-     * - Xóa dư khoảng trắng.
-     * - Viết hoa chữ cái đầu mỗi từ.
-     */
     public String normalizationFullName(String input) {
         if (input == null || input.trim().isEmpty()) {
             return "";
@@ -32,11 +27,6 @@ public class NormalizationService {
         return sb.toString().trim(); // remove trailing space
     }
 
-    /**
-     * Chuẩn hóa email:
-     * - Xóa dư khoảng trắng.
-     * - Chuyển hết thành chữ thường.
-     */
     public String normalizationEmail(String input) {
         if (input == null || input.trim().isEmpty()) {
             return "";
@@ -44,9 +34,6 @@ public class NormalizationService {
         return input.trim().toLowerCase();
     }
 
-    /**
-     * (Optional) Chuẩn hóa số điện thoại: xóa dấu cách, chuẩn hóa chỉ còn số + chữ số
-     */
     public String normalizationPhoneNumber(String input) {
         if (input == null || input.trim().isEmpty()) {
             return "";
