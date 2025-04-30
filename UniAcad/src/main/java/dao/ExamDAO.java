@@ -182,17 +182,17 @@ public class ExamDAO extends DBContext {
             }
 
             if (count == 0) {
-                logger.warn("⚠️ No grades found for courseId: {}", courseId);
+                logger.warn("No grades found for courseId: {}", courseId);
                 return false;
             }
 
             insertExam.executeBatch();
             conn.commit();
-            logger.info("✅ Created {} exams for course {}", count, courseId);
+            logger.info("reated {} exams for course {}", count, courseId);
             return true;
 
         } catch (SQLException e) {
-            logger.error("❌ Error creating exams for course " + courseId, e);
+            logger.error("Error creating exams for course " + courseId, e);
             return false;
         }
     }

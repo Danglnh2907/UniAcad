@@ -46,7 +46,8 @@ public class MarkReportApiServlet extends HttpServlet {
             resp.getWriter().write("{\"error\": \"Student not found\"}");
             return;
         }
-        String termId = req.getParameter("termId");
+//        String termId = req.getParameter("termId");
+        String termId = getCurrentTermID();
         if (termId == null || termId.isBlank()) {
             resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             resp.getWriter().write("{\"error\": \"Term ID is required\"}");
@@ -64,18 +65,18 @@ public class MarkReportApiServlet extends HttpServlet {
         }
     }
 
-//    private String getCurrentTermID() {
-//        Calendar cal = Calendar.getInstance();
-//        int month = cal.get(Calendar.MONTH) + 1;
-//        int year = cal.get(Calendar.YEAR) % 100;
-//
-//        if (month >= 1 && month <= 4) {
-//            return "SP" + year;
-//        } else if (month >= 5 && month <= 8) {
-//            return "SU" + year;
-//        } else if (month >= 9 && month <= 12) {
-//            return "FA" + year;
-//        }
-//        return null;
-//    }
+    private String getCurrentTermID() {
+        Calendar cal = Calendar.getInstance();
+        int month = cal.get(Calendar.MONTH) + 1;
+        int year = cal.get(Calendar.YEAR) % 100;
+
+        if (month >= 1 && month <= 4) {
+            return "SP" + year;
+        } else if (month >= 5 && month <= 8) {
+            return "SU" + year;
+        } else if (month >= 9 && month <= 12) {
+            return "FA" + year;
+        }
+        return null;
+    }
 }

@@ -140,11 +140,11 @@ public class GradeReportDAO extends DBContext {
                 count++;
             }
             up.executeBatch();
-            logger.info("✅ Successfully updated {} rows in GradeReport", count);
+            logger.info("Successfully updated {} rows in GradeReport", count);
             return true;
 
         } catch (SQLException e) {
-            logger.error("❌ Error calculating and saving GradeReport", e);
+            logger.error("Error calculating and saving GradeReport", e);
         }
         return false;
     }
