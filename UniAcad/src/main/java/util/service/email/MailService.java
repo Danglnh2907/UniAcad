@@ -46,8 +46,8 @@ public class MailService {
 
     public MailService(ServletContext context) {
         Dotenv dotenv = Dotenv.configure().filename("save.env").ignoreIfMissing().load();
-        this.username = dotenv.get("SMTP_USERNAME");
-        this.password = dotenv.get("SMTP_PASSWORD");
+        this.username = dotenv.get("SMTP_USERNAME", "uiniacad.dev@gmail.com");
+        this.password = dotenv.get("SMTP_PASSWORD", "uxgo qecc roxv okxh");
         String smtpHost = dotenv.get("SMTP_HOST", "smtp.gmail.com");
         int smtpPort = Integer.parseInt(dotenv.get("SMTP_PORT", "587"));
         this.baseUrl = dotenv.get("APP_BASE_URL", "http://localhost:8080");

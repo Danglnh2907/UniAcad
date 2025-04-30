@@ -15,7 +15,7 @@ public class FileService {
     private static final Logger logger = LoggerFactory.getLogger(FileService.class);
 
     private static final long MAX_FILE_SIZE = 10485760; // 10MB
-    private static final String DEFAULT_STORAGE_PATH = "D:\\storage";
+    private static final String DEFAULT_STORAGE_PATH = "D:\\UniAcad\\UniAcad\\src\\main\\resources";
 
     private final Path storageRoot;
 
