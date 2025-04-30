@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-@WebServlet("/api/warnings")
+@WebServlet("/api/student/warnings")
 public class WarningServlet extends HttpServlet {
 
     private static final Logger LOGGER = Logger.getLogger(WarningServlet.class.getName());

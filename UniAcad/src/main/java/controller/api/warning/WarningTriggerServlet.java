@@ -21,7 +21,7 @@ public class WarningTriggerServlet extends HttpServlet {
 
         try {
             WarningDAO warningDAO = new WarningDAO();
-            EmailTemplateService emailService = new EmailTemplateService(req.getServletContext());
+            EmailTemplateService emailService = new EmailTemplateService(null);
 
             WarningAutomationService automation = new WarningAutomationService();
             automation.setWarningService(warningDAO);

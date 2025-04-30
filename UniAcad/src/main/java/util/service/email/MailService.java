@@ -395,13 +395,13 @@ public class MailService {
             // Tạo dữ liệu mẫu cho email cá nhân hóa
             Map<String, Map<String, Object>> variables = new HashMap<>();
             variables.put("khai1234sd@gmail.com", Map.of(
-                    "name", "John Doe",
+                    "name", "Khai",
                     "token", "xyz123",
                     "verificationLink", mailService.baseUrl + "/verify?token=xyz123",
                     "items", List.of("Course A", "Course B", "Course C")
             ));
             variables.put("khainhce182286@fpt.edu.vn", Map.of(
-                    "name", "Jane Smith",
+                    "name", "Nguyen Hoang Khai",
                     "token", "xyz124",
                     "verificationLink", mailService.baseUrl + "/verify?token=xyz124",
                     "items", List.of("Course X", "Course Y", "Course Z")

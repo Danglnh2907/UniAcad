@@ -1,6 +1,7 @@
 package util.service.warning;
 
 import dao.WarningDAO;
+import lombok.Setter;
 import model.datasupport.WarningInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +20,7 @@ public class WarningAutomationService {
     private static final Logger logger = LoggerFactory.getLogger(WarningAutomationService.class);
 
     private WarningDAO warningDAO;
+    @Setter
     private EmailTemplateService emailTemplateService;
 
     public WarningAutomationService() {
@@ -32,10 +34,6 @@ public class WarningAutomationService {
 
     public void setWarningService(WarningDAO warningDAO) {
         this.warningDAO = warningDAO;
-    }
-
-    public void setEmailTemplateService(EmailTemplateService emailTemplateService) {
-        this.emailTemplateService = emailTemplateService;
     }
 
     /**
