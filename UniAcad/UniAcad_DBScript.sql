@@ -253,7 +253,7 @@ CREATE TABLE GradeReport
 	FOREIGN KEY (StudentID) REFERENCES Student(StudentID),
 	FOREIGN KEY (TermID) REFERENCES Term(TermID),
 	CHECK (Mark >= 0 AND Mark <= 10)
-)
+);
 
 CREATE TABLE Exam
 (
@@ -267,7 +267,26 @@ CREATE TABLE Exam
 	PRIMARY KEY (ExamID),
 	FOREIGN KEY (GradeID) REFERENCES Grade(GradeID),
 	FOREIGN KEY (RoomID) REFERENCES Room(RoomID)
-)
+);
+
+CREATE TABLE [Notification]
+(
+	NotificationID INT IDENTITY,
+	NotificationTitle VARCHAR(255) NOT NULL,
+	NotificationContent NVARCHAR(MAX) NOT NULL, -- full HTML or Markdown content
+	NotificationDate DATETIME NOT NULL DEFAULT GETDATE(),
+	PRIMARY KEY (NotificationID)
+);
+
+CREATE TABLE CheckedNotification
+(
+	StudentID CHAR(8) NOT NULL,
+	NotificationID INT NOT NULL,
+	IsChecked BIT DEFAULT 0,
+	PRIMARY KEY (StudentID, NotificationID),
+	FOREIGN KEY (StudentID) REFERENCES Student(StudentID),
+	FOREIGN KEY (NotificationID) REFERENCES [Notification](NotificationID)
+);
 
 GO
 
@@ -285,12 +304,12 @@ GO
 INSERT INTO Major(MajorID, MajorName) VALUES
 ('SE', 'Software Engineering'),
 ('GD', 'Graphic Design'),
-('IB', 'International Business')
+('IB', 'International Business');
 
 INSERT INTO Curriculum(CurriculumID, CurriculumName, MajorID) VALUES
 ('BIT_SE_K18D_19A', 'The Bachelor Program of Information Technology, Software Engineering Major', 'SE'),
 ('BIT_GD_K19DK20A','Bachelor Program of Information Technology, Digital Art & Design Major','GD'),
-('BBA_IB_K18C','Bachelor Program of Business Adminstration, International Business Major','IB')
+('BBA_IB_K18C','Bachelor Program of Business Adminstration, International Business Major','IB');
 
 INSERT INTO Department(DepartmentID, DepartmentName) VALUES ('AI', 'Artificial Intelligence');
 INSERT INTO Department(DepartmentID, DepartmentName) VALUES ('EL', 'English');
@@ -535,51 +554,118 @@ INSERT INTO Room(RoomID) VALUES
 
 INSERT INTO Teacher(TeacherID, TeacherName, TeacherEmail, TeacherPhone, TeacherStatus, DepartmentID) VALUES
 ('PhucPT', 'Pham Tien Phuc', 'phucpt@gmail.com', '0123456789', 0, 'SE'),
-('KhanhVH', 'Vo Hong Kanh', 'khanhvh@gmail.com', '0234567890', 0, 'SE')
+('KhanhVH', 'Vo Hong Kanh', 'khanhvh@gmail.com', '0234567890', 0, 'SE');
 
 INSERT INTO Student(StudentID, StudentName, StudentSSN, StudentEmail, StudentPhone,  CurriculumID, StudentGender, Address, StudentDoB) VALUES
-('CE181480', 'Ho Quang Thanh', '001122334455', 'thanhhqce181480@gmail.com', '07878', 'BIT_SE_K18D_19A', 0, 'CanTho', '2004-09-25'),
+('CE181480', 'Ho Quang Thanh', '001122334455', 'hoquangthanh2509@gmail.com', '07878', 'BIT_SE_K18D_19A', 0, 'CanTho', '2004-09-25'),
 ('CE182286', 'Nguyen Hoang Khai', '001122337755', 'khainhce182286@fpt.edu.vn', '0787844', 'BIT_SE_K18D_19A', 0, 'CanTho2', '2004-09-26'),
-('CE180008', 'Nguyen Thi Anh', '001122334422', 'anhntce180008@gmail.com', '0787855', 'BIT_SE_K18D_19A', 1, 'CanTho3', '2004-09-27'),
-('CE180009', 'Nguyen Minh Nhu', '001122337733', 'nhunmce180009@gmail.com', '0787866', 'BIT_SE_K18D_19A', 1, 'CanTho4', '2004-09-28')
+('CE180002', 'Nguyen Thi Anh', '001122334422', 'anhntce180008@gmail.com', '0787855', 'BIT_SE_K18D_19A', 1, 'CanTho3', '2004-09-27'),
+('CE180003', 'Nguyen Minh Nhu', '001122337733', 'nhunmce180009@gmail.com', '0787866', 'BIT_SE_K18D_19A', 1, 'CanTho4', '2004-09-28');
 
 INSERT INTO Staff(StaffID, StaffName, StaffEmail, StaffPhone, StaffStatus) VALUES
-('S1', 'Staff1', 'Staff1@gmail.com' , '0123123123', 0),
-('S2', 'Staff2', 'Staff2@gmail.com' , '0456456456', 0)
+('S1', 'Staff1', 'uiniacad.dev@gmail.com' , '0123123123', 0);
+
+INSERT INTO Course(ClassID, SubjectID, TermID, TotalSlot) VALUES
+('SE1815', 'PRJ301', 'SP25', 10),
+('SE1816', 'PRJ301', 'SP25', 10),
+('SE1815', 'SWE201c', 'SP25', 10);
 
 INSERT INTO Course(ClassID, SubjectID, TermID, TotalSlot) VALUES
 ('SE1815', 'SWP391', 'SP25', 10),
-('SE1815', 'SWP391', 'SP25', 10)
+('SE1816', 'SWP391', 'SP25', 10),
+('SE1815', 'SWR302', 'SP25', 10),
+('SE1816', 'SWR302', 'SP25', 10);
 
 INSERT INTO Study(CourseID, StudentID) VALUES
 (1, 'CE181480'),
 (2, 'CE182286'),
-(1, 'CE180008'),
-(2, 'CE180009')
+(1, 'CE180002'),
+(2, 'CE180003'),
+(3, 'CE181480'),
+(3, 'CE182286'),
+(3, 'CE180002'),
+(3, 'CE180003');
+
+INSERT INTO Study(CourseID, StudentID) VALUES
+(4, 'CE181480'),
+(5, 'CE182286'),
+(4, 'CE180002'),
+(5, 'CE180003'),
+(6, 'CE181480'),
+(7, 'CE182286'),
+(6, 'CE180002'),
+(7, 'CE180003');
+
 
 INSERT INTO Slot(CourseID, SlotNumber, StartTime, Duration, RoomID, TeacherID) VALUES
-(1, 1, '2025-05-03 07:00:00', '2:15:00', 'G207', 'PhucPT'),
-(1, 2, '2025-05-04 07:00:00', '2:15:00', 'G208', 'PhucPT'),
-(1, 3, '2025-05-05 07:00:00', '2:15:00', 'G207', 'PhucPT'),
-(1, 4, '2025-05-06 07:00:00', '2:15:00', 'G208', 'PhucPT'),
-(1, 5, '2025-05-07 07:00:00', '2:15:00', 'G207', 'PhucPT'),
-(1, 6, '2025-05-08 07:00:00', '2:15:00', 'G208', 'PhucPT'),
-(1, 7, '2025-05-09 07:00:00', '2:15:00', 'G207', 'PhucPT'),
-(1, 8, '2025-05-10 07:00:00', '2:15:00', 'G208', 'PhucPT'),
-(1, 9, '2025-05-11 07:00:00', '2:15:00', 'G207', 'PhucPT'),
-(1, 10, '2025-05-12 07:00:00', '2:15:00', 'G208', 'PhucPT')
+(1, 1, '2025-04-03 07:00:00', '2:15:00', 'G207', 'PhucPT'),
+(1, 2, '2025-04-04 07:00:00', '2:15:00', 'G208', 'PhucPT'),
+(1, 3, '2025-04-05 07:00:00', '2:15:00', 'G207', 'PhucPT'),
+(1, 4, '2025-04-06 07:00:00', '2:15:00', 'G208', 'PhucPT'),
+(1, 5, '2025-04-07 07:00:00', '2:15:00', 'G207', 'PhucPT'),
+(1, 6, '2025-04-08 07:00:00', '2:15:00', 'G208', 'PhucPT'),
+(1, 7, '2025-04-09 07:00:00', '2:15:00', 'G207', 'PhucPT'),
+(1, 8, '2025-04-10 07:00:00', '2:15:00', 'G208', 'PhucPT'),
+(1, 9, '2025-04-11 07:00:00', '2:15:00', 'G207', 'PhucPT'),
+(1, 10, '2025-04-12 07:00:00', '2:15:00', 'G208', 'PhucPT');
 
 INSERT INTO Slot(CourseID, SlotNumber, StartTime, Duration, RoomID, TeacherID) VALUES
-(2, 1, '2025-05-03 07:00:00', '2:15:00', 'G205', 'KhanhVH'),
-(2, 2, '2025-05-04 07:00:00', '2:15:00', 'G206', 'KhanhVH'),
-(2, 3, '2025-05-05 07:00:00', '2:15:00', 'G205', 'KhanhVH'),
-(2, 4, '2025-05-06 07:00:00', '2:15:00', 'G206', 'KhanhVH'),
-(2, 5, '2025-05-07 07:00:00', '2:15:00', 'G205', 'KhanhVH'),
-(2, 6, '2025-05-08 07:00:00', '2:15:00', 'G206', 'KhanhVH'),
-(2, 7, '2025-05-09 07:00:00', '2:15:00', 'G205', 'KhanhVH'),
-(2, 8, '2025-05-10 07:00:00', '2:15:00', 'G206', 'KhanhVH'),
-(2, 9, '2025-05-11 07:00:00', '2:15:00', 'G205', 'KhanhVH'),
-(2, 10, '2025-05-12 07:00:00', '2:15:00', 'G206', 'KhanhVH')
+(2, 1, '2025-04-03 07:00:00', '2:15:00', 'G205', 'KhanhVH'),
+(2, 2, '2025-04-04 07:00:00', '2:15:00', 'G206', 'KhanhVH'),
+(2, 3, '2025-04-05 07:00:00', '2:15:00', 'G205', 'KhanhVH'),
+(2, 4, '2025-04-06 07:00:00', '2:15:00', 'G206', 'KhanhVH'),
+(2, 5, '2025-04-07 07:00:00', '2:15:00', 'G205', 'KhanhVH'),
+(2, 6, '2025-04-08 07:00:00', '2:15:00', 'G206', 'KhanhVH'),
+(2, 7, '2025-04-09 07:00:00', '2:15:00', 'G205', 'KhanhVH'),
+(2, 8, '2025-04-10 07:00:00', '2:15:00', 'G206', 'KhanhVH'),
+(2, 9, '2025-04-11 07:00:00', '2:15:00', 'G205', 'KhanhVH'),
+(2, 10, '2025-04-12 07:00:00', '2:15:00', 'G206', 'KhanhVH');
+
+INSERT INTO Slot(CourseID, SlotNumber, StartTime, Duration, RoomID, TeacherID) VALUES
+(3, 1, '2025-04-03 09:30:00', '2:15:00', 'G205', 'KhanhVH'),
+(3, 2, '2025-04-04 09:30:00', '2:15:00', 'G206', 'KhanhVH'),
+(3, 3, '2025-04-05 09:30:00', '2:15:00', 'G205', 'KhanhVH'),
+(3, 4, '2025-04-06 09:30:00', '2:15:00', 'G206', 'KhanhVH'),
+(3, 5, '2025-04-07 09:30:00', '2:15:00', 'G205', 'KhanhVH'),
+(3, 6, '2025-04-08 09:30:00', '2:15:00', 'G206', 'KhanhVH'),
+(3, 7, '2025-04-09 09:30:00', '2:15:00', 'G205', 'KhanhVH'),
+(3, 8, '2025-04-10 09:30:00', '2:15:00', 'G206', 'KhanhVH'),
+(3, 9, '2025-04-11 09:30:00', '2:15:00', 'G205', 'KhanhVH'),
+(3, 10, '2025-04-12 09:30:00', '2:15:00', 'G206', 'KhanhVH');
+
+INSERT INTO Grade(CourseID, GradeName, GradePercent) VALUES
+(1, 'Progress Test 1', 10),
+(1, 'Progress Test 2', 10),
+(1, 'Lab', 20),
+(1, 'Final Assignment', 20),
+(1, 'Final Exam', 40);
+
+INSERT INTO Grade(CourseID, GradeName, GradePercent) VALUES
+(2, 'Progress Test 1', 10),
+(2, 'Progress Test 2', 10),
+(2, 'Lab', 20),
+(2, 'Final Assignment', 20),
+(2, 'Final Exam', 40);
+
+INSERT INTO Grade(CourseID, GradeName, GradePercent) VALUES
+(3, 'Practical Exam', 40),
+(3, 'Theoretical  Exam', 60);
+
+INSERT INTO Exam(ExamName, GradeID, ExamDate, ExamDuration, RoomID, ExamType) VALUES
+('Progress Test 1', 1, '2025-04-07 09:30:00', '0:30:00', 'G205', 0),
+('Progress Test 2', 2, '2025-04-12 09:30:00', '0:30:00', 'G206', 0),
+('PRJ Final Exam', 5, '2025-04-14 09:30:00', '1:00:00', 'G210', 0),
+('PRJ Final Exam 2 Retake', 5, '2025-04-19 09:30:00', '1:00:00', 'G211', 0);
+
+INSERT INTO Exam(ExamName, GradeID, ExamDate, ExamDuration, RoomID, ExamType) VALUES
+('Progress Test 1', 6, '2025-04-07 09:30:00', '0:30:00', 'G205', 0),
+('Progress Test 2', 7, '2025-04-12 09:30:00', '0:30:00', 'G206', 0),
+('PRJ Final Exam', 10, '2025-04-14 09:30:00', '1:00:00', 'G210', 0),
+('PRJ Final Exam 2 Retake', 10, '2025-04-19 09:30:00', '1:00:00', 'G211', 0);
+
+INSERT INTO Exam(ExamName, GradeID, ExamDate, ExamDuration, RoomID, ExamType) VALUES
+('SWE Practical Exam', 6, '2025-04-07 09:30:00', '0:30:00', 'G205', 0),
+('SWE Practical Exam', 7, '2025-04-12 09:30:00', '0:30:00', 'G206', 0);
 
 SELECT * FROM Student
 SELECT

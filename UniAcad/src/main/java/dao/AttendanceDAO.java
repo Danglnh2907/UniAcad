@@ -33,4 +33,8 @@ public class AttendanceDAO extends DBContext {
             ps.executeUpdate();
         }
     }
+    
+    public static void main(String[] args) {
+        System.out.println("Hello");
+    }
 }

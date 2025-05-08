@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Create Notification</title>
+    <!-- Include Quill stylesheet -->
+    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet" />
+</head>
+<body>
+
+<h2>Create new Notification</h2>
+<input type="text" id="notificationTitle" name="notificationTitle" placeholder="Title" />
+<div id="editor">
+    <p>Hello World!</p>
+    <p>Template or something <strong>bold</strong> text</p>
+    <p><br /></p>
+</div>
+<button onclick="submitNotification()">Send Notification</button>
+
+<!-- Include the Quill library -->
+<script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+
+<!-- Initialize Quill editor -->
+<script>
+    const quill = new Quill('#editor', {
+        theme: 'snow'
+    });
+
+    function submitNotification() {
+        const title = document.getElementById('notificationTitle').value;
+        const content = quill.root.innerHTML; // Lấy HTML content
+        //console.log("Title:", title);
+        //console.log("Content:", content);
+        // TODO: send to server
+    }
+
+</script>
+</body>
+</html>
